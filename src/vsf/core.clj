@@ -1,6 +1,82 @@
 (ns vsf.core)
 
-(defn foo
-  "I don't do a whole lot."
-  [x]
-  (println x "Hello, World!"))
+
+(def action->fn
+  {:above-dt            'cond-dt*
+   :sum                 'aggregation*
+   :async-queue!        'async-queue!*
+   :below-dt            'cond-dt*
+   :between-dt          'cond-dt*
+   :bottom              'aggregation*
+   :changed             'changed*
+   :coalesce            'coalesce*
+   :coll-bottom         'coll-bottom*
+   :coll-count          'coll-count*
+   :coll-increase       'coll-increase*
+   :coll-max            'coll-max*
+   :coll-mean           'coll-mean*
+   :coll-min            'coll-min*
+   :coll-percentiles    'coll-percentiles*
+   :coll-quotient       'coll-quotient*
+   :coll-rate           'coll-rate*
+   :coll-sort           'coll-sort*
+   :coll-sum            'coll-sum*
+   :coll-top            'coll-top*
+   :coll-where          'coll-where*
+   :critical            'critical*
+   :critical-dt         'cond-dt*
+   :debug               'debug*
+   :default             'default*
+   :decrement           'decrement*
+   :ddt                 'ddt*
+   :ddt-pos             'ddt*
+   :info                'info*
+   :error               'error*
+   :extract             'extract*
+   :ewma-timeless       'ewma-timeless*
+   :exception-stream    'exception-stream*
+   :expired             'expired*
+   :fixed-event-window  'fixed-event-window*
+   :fixed-time-window   'aggregation*
+   :from-base64         'from-base64*
+   :increment           'increment*
+   :index               'index*
+   :io                  'io*
+   :json-fields         'json-fields*
+   :keep-keys           'keep-keys*
+   :mean                'aggregation*
+   :moving-event-window 'moving-event-window*
+   :moving-time-window  'moving-time-window*
+   :not-expired         'not-expired*
+   :outside-dt          'cond-dt*
+   :over                'over*
+   :percentiles         'percentiles*
+   :project             'project*
+   :publish!            'publish!*
+   :output!             'output!*
+   :rate                'aggregation*
+   :reaper              'reaper*
+   :reinject!           'reinject!*
+   :rename-keys         'rename-keys*
+   :scale               'scale*
+   :sdissoc             'sdissoc*
+   :sdo                 'sdo*
+   :sflatten            'sflatten*
+   :sformat             'sformat*
+   :smax                'scondition*
+   :smin                'scondition*
+   :split               'split*
+   :ssort               'aggregation*
+   :stable              'stable*
+   :tag                 'tag*
+   :tagged-all          'tagged-all*
+   :tap                 'tap*
+   :test-action         'test-action*
+   :throttle            'throttle*
+   :to-base64           'to-base64*
+   :top                 'aggregation*
+   :under               'under*
+   :untag               'untag*
+   :warning             'warning*
+   :where               'where*
+   :with                'with*})

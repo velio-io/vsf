@@ -1,7 +1,6 @@
 (ns vsf.core-test
-  (:require [clojure.test :refer :all]
-            [vsf.core :refer :all]))
+  (:require
+   [clojure.test :refer :all]
+   [vsf.core :as sut]))
 
-(deftest a-test
-  (testing "FIXME, I fail."
-    (is (= 0 1))))
+
