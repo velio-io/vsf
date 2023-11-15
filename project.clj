@@ -7,6 +7,11 @@
 
   :dependencies [[org.clojure/clojure "1.11.1"]
                  [org.clojure/tools.logging "1.2.4"]
-                 [exoscale/ex "0.4.1"]]
+                 [cheshire "5.12.0"]
+                 [exoscale/ex "0.4.1"]
+                 [com.boundary/high-scale-lib "1.0.6"]
+                 [org.hdrhistogram/HdrHistogram "2.1.12"]]
 
-  :repl-options {:init-ns vsf.core})
+  :repl-options {:init-ns vsf.core}
+
+  :profiles {:dev {:dependencies [[vvvvalvalval/scope-capture "0.3.3"]]}})

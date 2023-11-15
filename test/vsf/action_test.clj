@@ -4,21 +4,77 @@
    [vsf.action :as sut]))
 
 
+(deftest streams-test
+  (is (= {:foo {:actions {:action      :sdo
+                          :description {:message "Forward events to children"}
+                          :children    [{:action      :increment
+                                         :description {:message "Increment the :metric field"}
+                                         :children    nil}]}}}
+         (sut/streams
+          (sut/stream
+            {:name :foo}
+            (sut/increment)))))
+  (is (= {:foo {:actions {:action      :sdo
+                          :description {:message "Forward events to children"}
+                          :children    [{:action      :increment
+                                         :description {:message "Increment the :metric field"}
+                                         :children    nil}]}}
+          :bar {:actions {:action      :sdo
+                          :description {:message "Forward events to children"}
+                          :children    [{:action      :decrement
+                                         :description {:message "Decrement the :metric field"}
+                                         :children    nil}
+                                        {:action      :increment
+                                         :description {:message "Increment the :metric field"}
+                                         :children    nil}]}}}
+         (sut/streams
+          (sut/stream
+            {:name :foo}
+            (sut/increment))
+          (sut/stream
+            {:name :bar}
+            (sut/decrement)
+            (sut/increment))))))
+
+
+(deftest custom-test
+  (is (= {:action      :foo
+          :params      []
+          :description {:message "Use the custom action :foo", :params ""}
+          :children    [{:action      :decrement
+                         :description {:message "Decrement the :metric field"}
+                         :children    nil}]}
+         (sut/custom :foo nil
+           (sut/decrement))))
+  (is (= {:action      :foo
+          :params      []
+          :description {:message "Use the custom action :foo", :params "[]"}
+          :children    [{:action      :decrement
+                         :description {:message "Decrement the :metric field"}
+                         :children    nil}]}
+         (sut/custom :foo []
+           (sut/decrement))))
+  (is (= {:action      :foo
+          :params      [:a 1 "a"]
+          :description {:message "Use the custom action :foo", :params "[:a 1 \"a\"]"}
+          :children    [{:action      :decrement
+                         :description {:message "Decrement the :metric field"}
+                         :children    nil}]}
+         (sut/custom :foo [:a 1 "a"]
+           (sut/decrement)))))
+
+
 (deftest actions-output-test
-  (is (= (sut/where [:and
-                     [:= :host "foo"]
-                     [:> :metric 10]])
-         {:action      :where,
+  (is (= {:action      :where,
           :description {:message "Filter events based on the provided condition",
                         :params  "[:and [:= :host \"foo\"] [:> :metric 10]]"},
           :params      [[:and [:= :host "foo"] [:> :metric 10]]],
-          :children    nil}))
+          :children    nil}
+         (sut/where [:and
+                     [:= :host "foo"]
+                     [:> :metric 10]])))
 
-  (is (= (sut/fixed-time-window {:duration 60}
-           (sut/coll-where [:and
-                            [:= :host "foo"]
-                            [:> :metric 10]]))
-         {:action      :fixed-time-window
+  (is (= {:action      :fixed-time-window
           :children    '({:action      :coll-where
                           :children    nil
                           :description {:message "Filter a list of events based on the provided condition"
@@ -28,501 +84,834 @@
                                          [:> :metric 10]]]})
           :description {:message "Build 60 seconds fixed time windows"}
           :params      [{:aggr-fn  :fixed-time-window
-                         :duration 60}]}))
+                         :duration 60}]}
+         (sut/fixed-time-window {:duration 60}
+           (sut/coll-where [:and
+                            [:= :host "foo"]
+                            [:> :metric 10]]))))
 
-  (is (= (sut/increment
-          (sut/index [:host]))
-         {:action      :increment
+  (is (= {:action      :increment
           :children    '({:action      :index
                           :description {:message "Insert events into the index using the provided fields as keys"
                                         :params  "[:host]"}
                           :params      [[:host]]})
-          :description {:message "Increment the :metric field"}}))
+          :description {:message "Increment the :metric field"}}
+         (sut/increment
+          (sut/index [:host]))))
 
-
-  (is (= (sut/decrement
-          (sut/index [:host]))
-         {:action      :decrement
+  (is (= {:action      :decrement
           :children    '({:action      :index
                           :description {:message "Insert events into the index using the provided fields as keys"
                                         :params  "[:host]"}
                           :params      [[:host]]})
-          :description {:message "Decrement the :metric field"}}))
+          :description {:message "Decrement the :metric field"}}
+         (sut/decrement
+          (sut/index [:host]))))
 
-
-  (is (= (sut/increment
-          (sut/debug))
-         {:action      :increment
+  (is (= {:action      :increment
           :children    '({:action      :debug
                           :description {:message "Print the event in the logs as debug"}})
-          :description {:message "Increment the :metric field"}}))
+          :description {:message "Increment the :metric field"}}
+         (sut/increment
+          (sut/debug))))
 
-
-  (is (= (sut/increment
-          (sut/info))
-         {:action      :increment
+  (is (= {:action      :increment
           :children    '({:action      :info
                           :description {:message "Print the event in the logs as info"}})
-          :description {:message "Increment the :metric field"}}))
+          :description {:message "Increment the :metric field"}}
+         (sut/increment
+          (sut/info))))
 
-
-  (is (= (sut/increment
-          (sut/debug))
-         {:action      :increment
+  (is (= {:action      :increment
           :children    '({:action      :debug
                           :description {:message "Print the event in the logs as debug"}})
-          :description {:message "Increment the :metric field"}}))
+          :description {:message "Increment the :metric field"}}
+         (sut/increment
+          (sut/debug))))
 
-
-  (is (= (sut/fixed-event-window {:size 5}
-           (sut/debug))
-         {:action      :fixed-event-window
+  (is (= {:action      :fixed-event-window
           :children    '({:action      :debug
                           :description {:message "Print the event in the logs as debug"}})
           :description {:message "Create a fixed event window of size 5"}
-          :params      [{:size 5}]}))
+          :params      [{:size 5}]}
+         (sut/fixed-event-window {:size 5}
+           (sut/debug))))
 
-
-  (is (= (sut/fixed-event-window {:size 10}
-           (sut/coll-mean
-            (sut/debug)))
-         {:action      :fixed-event-window
+  (is (= {:action      :fixed-event-window
           :children    '({:action      :coll-mean
                           :children    ({:action      :debug
                                          :description {:message "Print the event in the logs as debug"}})
                           :description {:message "Computes the mean of events"}})
           :description {:message "Create a fixed event window of size 10"}
-          :params      [{:size 10}]}))
+          :params      [{:size 10}]}
+         (sut/fixed-event-window {:size 10}
+           (sut/coll-mean
+            (sut/debug)))))
 
-
-  (is (= (sut/fixed-event-window {:size 10}
-           (sut/coll-max
-            (sut/debug)))
-         {:action      :fixed-event-window
+  (is (= {:action      :fixed-event-window
           :children    '({:action      :coll-max
                           :children    ({:action      :debug
                                          :description {:message "Print the event in the logs as debug"}})
                           :description {:message "Get the event with the biggest metric"}})
           :description {:message "Create a fixed event window of size 10"}
-          :params      [{:size 10}]}))
+          :params      [{:size 10}]}
+         (sut/fixed-event-window {:size 10}
+           (sut/coll-max
+            (sut/debug)))))
 
-
-  (is (= (sut/fixed-event-window {:size 10}
-           (sut/coll-sum
-            (sut/debug)))
-         {:action      :fixed-event-window
+  (is (= {:action      :fixed-event-window
           :children    '({:action      :coll-sum
                           :children    ({:action      :debug
                                          :description {:message "Print the event in the logs as debug"}})
                           :description {:message "Get the event with the biggest metric"}})
           :description {:message "Create a fixed event window of size 10"}
-          :params      [{:size 10}]}))
+          :params      [{:size 10}]}
+         (sut/fixed-event-window {:size 10}
+           (sut/coll-sum
+            (sut/debug)))))
 
-
-  (is (= (sut/fixed-event-window {:size 10}
-           (sut/coll-min
-            (sut/debug)))
-         {:action      :fixed-event-window
+  (is (= {:action      :fixed-event-window
           :children    '({:action      :coll-min
                           :children    ({:action      :debug
                                          :description {:message "Print the event in the logs as debug"}})
                           :description {:message "Get the event with the smallest metric"}})
           :description {:message "Create a fixed event window of size 10"}
-          :params      [{:size 10}]}))
+          :params      [{:size 10}]}
+         (sut/fixed-event-window {:size 10}
+           (sut/coll-min
+            (sut/debug)))))
 
-
-  (is (= (sut/fixed-event-window {:size 10}
-           (sut/coll-sort :time
-             (sut/debug)))
-         {:action      :fixed-event-window
+  (is (= {:action      :fixed-event-window
           :children    '({:action      :coll-sort
                           :children    ({:action      :debug
                                          :description {:message "Print the event in the logs as debug"}})
                           :description {:message "Sort events based on the field :time"}
                           :params      [:time]})
           :description {:message "Create a fixed event window of size 10"}
-          :params      [{:size 10}]}))
+          :params      [{:size 10}]}
+         (sut/fixed-event-window {:size 10}
+           (sut/coll-sort :time
+             (sut/debug)))))
 
-  (is (= (sut/sdo
-          (sut/increment)
-          (sut/decrement))
-         {:action      :sdo
+  (is (= {:action      :sdo
           :children    '({:action      :increment
                           :children    nil
                           :description {:message "Increment the :metric field"}}
                          {:action      :decrement
                           :children    nil
                           :description {:message "Decrement the :metric field"}})
-          :description {:message "Forward events to children"}}))
+          :description {:message "Forward events to children"}}
+         (sut/sdo
+          (sut/increment)
+          (sut/decrement))))
 
-
-  (is (= (sut/expired
-          (sut/increment))
-         {:action      :expired
+  (is (= {:action      :expired
           :children    '({:action      :increment
                           :children    nil
                           :description {:message "Increment the :metric field"}})
-          :description {:message "Keep expired events"}}))
+          :description {:message "Keep expired events"}}
+         (sut/expired
+          (sut/increment))))
 
-
-  (is (= (sut/not-expired
-          (sut/increment))
-         {:action      :not-expired
+  (is (= {:action      :not-expired
           :children    '({:action      :increment
                           :children    nil
                           :description {:message "Increment the :metric field"}})
-          :description {:message "Remove expired events"}}))
+          :description {:message "Remove expired events"}}
+         (sut/not-expired
+          (sut/increment))))
 
-
-  (is (= (sut/above-dt {:threshold 100 :duration 10}
-           (sut/debug))
-         {:action      :above-dt
+  (is (= {:action      :above-dt
           :children    '({:action      :debug
                           :description {:message "Print the event in the logs as debug"}})
           :description {:message "Keep events if :metric is greater than 100 during 10 seconds"}
-          :params      [[:> :metric 100] 10]}))
+          :params      [[:> :metric 100] 10]}
+         (sut/above-dt {:threshold 100 :duration 10}
+           (sut/debug))))
 
-
-  (is (= (sut/below-dt {:threshold 100 :duration 10}
-           (sut/debug))
-         {:action      :below-dt
+  (is (= {:action      :below-dt
           :children    '({:action      :debug
                           :description {:message "Print the event in the logs as debug"}})
           :description {:message "Keep events if :metric is lower than 100 during 10 seconds"}
-          :params      [[:< :metric 100] 10]}))
+          :params      [[:< :metric 100] 10]}
+         (sut/below-dt {:threshold 100 :duration 10}
+           (sut/debug))))
 
-
-  (is (= (sut/between-dt {:low 50 :high 100 :duration 10}
-           (sut/debug))
-         {:action      :between-dt
+  (is (= {:action      :between-dt
           :children    '({:action      :debug
                           :description {:message "Print the event in the logs as debug"}})
           :description {:message "Keep events if :metric is between 50 and 100 during 10 seconds"}
           :params      [[:and
                          [:> :metric 50]
                          [:< :metric 100]]
-                        10]}))
+                        10]}
+         (sut/between-dt {:low 50 :high 100 :duration 10}
+           (sut/debug))))
 
-
-  (is (= (sut/outside-dt {:low 50 :high 100 :duration 10}
-           (sut/debug))
-         {:action      :outside-dt
+  (is (= {:action      :outside-dt
           :children    '({:action      :debug
                           :description {:message "Print the event in the logs as debug"}})
           :description {:message "Keep events if :metric is outside 50 and 100 during 10 seconds"}
           :params      [[:or
                          [:< :metric 50]
                          [:> :metric 100]]
-                        10]}))
+                        10]}
+         (sut/outside-dt {:low 50 :high 100 :duration 10}
+           (sut/debug))))
 
-
-  (is (= (sut/critical-dt {:duration 10}
-           (sut/debug))
-         {:action      :critical-dt
+  (is (= {:action      :critical-dt
           :children    '({:action      :debug
                           :description {:message "Print the event in the logs as debug"}})
           :description {:message "Keep events if the state is critical for more than 10 seconds"}
           :params      [[:= :state "critical"]
-                        10]}))
+                        10]}
+         (sut/critical-dt {:duration 10}
+           (sut/debug))))
 
-
-  (is (= (sut/critical
-          (sut/error))
-         {:action      :critical
+  (is (= {:action      :critical
           :children    '({:action      :error
                           :description {:message "Print the event in the logs as error"}})
-          :description {:message "Keep critical events"}})))
+          :description {:message "Keep critical events"}}
+         (sut/critical
+          (sut/error))))
 
+  (is (= {:action      :warning
+          :children    '({:action      :warning
+                          :children    nil
+                          :description {:message "Keep warning events"}})
+          :description {:message "Keep warning events"}}
+         (sut/warning
+          (sut/warning))))
 
+  (is (= {:action      :default
+          :children    '({:action      :info
+                          :description {:message "Print the event in the logs as info"}})
+          :description {:message "Set (if nil) :state to ok"}
+          :params      [:state "ok"]}
+         (sut/default :state "ok"
+           (sut/info))))
 
-;;
-;;
-;;(warning
-;; (warning))
-;;
-;;
-;;(default :state "ok"
-;;  (info))
-;;
-;;
-;;(output! :influxdb)
-;;
-;;
-;;(coalesce {:duration 10 :fields [:host :service]}
-;;  (debug))
-;;
-;;
-;;(coalesce {:duration 10 :fields [:host [:nested :field]]}
-;;  (debug))
-;;
-;;
-;;(with :state "critical"
-;;  (debug))
-;;
-;;
-;;(with {:service "foo" :state "critical"}
-;;  (debug))
-;;
-;;
-;;(fixed-event-window {:size 3}
-;;  (coll-rate
-;;    (debug)))
-;;
-;;
-;;(fixed-event-window {:size 5}
-;;  (sflatten
-;;    (info)))
-;;
-;;
-;;(tag "foo"
-;;  (info))
-;;
-;;
-;;(tag ["foo" "bar"] (info))
-;;
-;;
-;;(untag "foo" index)
-;;
-;;
-;;(untag ["foo" "bar"] index)
-;;
-;;
-;;(tagged-all "foo"
-;;  (info))
-;;
-;;
-;;(tagged-all ["foo" "bar"] (info))
-;;
-;;
-;;(ddt
-;; (info))
-;;
-;;
-;;(scale 1000
-;;  (info))
-;;
-;;
-;;(split
-;; [:> :metric 10] (debug)
-;; [:> :metric 5] (info)
-;; (error)
-;;
-;;
-;; (throttle {:count 3 :duration 10}
-;;   (error))
-;;
-;;
-;; (moving-event-window {:size 5}
-;;   (coll-mean (info))
-;;
-;;
-;; (over 10
-;;   (info))
-;;
-;;
-;; (under 10
-;;   (info))
-;;
-;;
-;; (changed {:field :state :init "ok"})
-;;
-;;
-;; (changed {:field [:nested :field] :init "ok"})
-;;
-;;
-;; (project [[:= :service "enqueues"]
-;;           [:= :service "dequeues"]]
-;;   (coll-quotient
-;;     (with :service "enqueues per dequeue"
-;;       (info))))
-;;
-;;
-;; (index [:host :service])
-;;
-;;
-;; (fixed-time-window {:duration 60}
-;;   (coll-count
-;;     (debug)))
-;;
-;;
-;; (sdissoc :host (info))
-;;
-;; (sdissoc [:environment :host] (info))
-;;
-;; (sdissoc [:environment [:nested :key] (info))
-;;
-;;
-;; (fixed-event-window {:size 10}
-;;   (coll-percentiles [0.5 0.75 0.98 0.99]))
-;;
-;;
-;; (by {:fields [:host :service]}
-;;     (fixed-time-window {:duration 60}))
-;;
-;;
-;; (by {:fields [:host :service [:a :nested-key]
-;;               :gc-interval 3600
-;;               :fork-ttl 1800}
-;;     (fixed-time-window {:duration 60}))
-;;
-;;
-;; (reinject)
-;;
-;;
-;; (reinject :foo)
-;;
-;;
-;; (async-queue! :my-queue
-;;   (info))
-;;
-;;
-;; (where [:= :service "foo"]
-;;   (tap :foo)
-;;
-;;
-;; (with :my-field {"foo" "bar"}
-;;  (json-fields [:my-field]))
-;;
-;;
-;;(streams
-;;  (stream {:name :fobar}
-;;    (info))
-;;  (stream {:name :foo}
-;;    (info)))
-;;
-;;
-;;(custom :my-custom-action ["parameters"]
-;;  (info))
-;;
-;;
-;;(reaper 5)
-;;
-;;
-;;(reaper 5 :custom-stream)
-;;
-;;
-;;(sdo
-;;  ;; you can pass one field
-;;  (to-base64 :host)
-;;  ;; or a list of fields
-;;  (to-base64 [:host :service]))
-;;
-;;
-;;(sdo
-;;  ;; you can pass one field
-;;  (from-base64 :host)
-;;  ;; or a list of fields
-;;  (from-base64 [:host :service]))
-;;
-;;
-;;(sformat "%s-foo-%s" :format-test [:host :service])
-;;
-;;
-;;(publish! :my-channel)
-;;
-;;
-;;(fixed-time-window {:duration 60}
-;;  (coll-top 5
-;;    (info)))
-;;
-;;
-;;(fixed-time-window {:duration 60}
-;;  (coll-bottom 5
-;;    (info)))
-;;
-;;
-;;(stable 10 :state
-;;  (info))
-;;
-;;
-;;(stable 10 [:nested :field]
-;;  (info))
-;;
-;;
-;;(rename-keys {:host :service
-;;              :environment :env}
-;;
-;;
-;;(keep-keys [:host :metric :time :environment :description]
-;;  (info))
-;;
-;;
-;;(keep-keys [:host :metric :time [:a :nested-key]]
-;;  (info))
-;;
-;;
-;;(sum {:duration 10}
-;;  (info))
-;;
-;;
-;;(sum {:duration 10 :delay 5}
-;;  (info))
-;;
-;;
-;;(top {:duration 10}
-;;  (info))
-;;
-;;
-;;(top {:duration 10 :delay 5}
-;;  (info))
-;;
-;;
-;;(bottom {:duration 10}
-;;  (info))
-;;
-;;
-;;(bottom {:duration 10 :delay 5}
-;;  (info))
-;;
-;;
-;;(mean {:duration 10}
-;;  (info))
-;;
-;;
-;;(mean {:duration 10 :delay 5}
-;;  (info))
-;;
-;;
-;;(fixed-time-window {:duration 60}
-;;  (coll-max
-;;    (info)))
-;;
-;;
-;;(fixed-time-window {:duration 60 :delay 30}
-;;  (coll-max
-;;    (info)))
-;;
-;;
-;;(ssort {:duration 10 :field :time}
-;;  (info))
-;;
-;;
-;;{:time 1} {:time 10} {:time 4} {:time 9} {:time 13} {:time 31}
-;;
-;;
-;;{:time 1} {:time 4} {:time 9} {:time 10} {:time 13}
-;;
-;;
-;;(ssort {:duration 10 :field :time :delay 10}
-;;  (info))
-;;
-;;
-;;[{:time 1 :metric 10} {:time 9 :metric 20} {:time 20 :metric 30}}
-;;
-;;
-;;{:time 20 :metric 20}
-;;
-;;
-;;(smax
-;;  (info))
-;;
-;;
-;;(smin
-;;  (info))
-;;
-;;
-;;{:time 1 :metric 10} {:time 2 :metric 3} {:time 3 :metric 11}
-;;
-;;
-;;(extract :base-event
-;;  (info))
+  (is (= {:action      :coalesce
+          :children    '({:action      :debug
+                          :description {:message "Print the event in the logs as debug"}})
+          :description {:message "Returns a list of the latest non-expired events for each fields (10) combinations, every [:host :service] seconds"}
+          :params      [{:duration 10
+                         :fields   [:host :service]}]}
+         (sut/coalesce {:duration 10 :fields [:host :service]}
+           (sut/debug))))
+
+  (is (= {:action      :coalesce
+          :children    '({:action      :debug
+                          :description {:message "Print the event in the logs as debug"}})
+          :description {:message "Returns a list of the latest non-expired events for each fields (10) combinations, every [:host [:nested :field]] seconds"}
+          :params      [{:duration 10
+                         :fields   [:host
+                                    [:nested
+                                     :field]]}]}
+         (sut/coalesce {:duration 10 :fields [:host [:nested :field]]}
+           (sut/debug))))
+
+  (is (= {:action      :with
+          :children    '({:action      :debug
+                          :description {:message "Print the event in the logs as debug"}})
+          :description {:message "Set the field :state to critical"}
+          :params      [{:state "critical"}]}
+         (sut/with :state "critical"
+           (sut/debug))))
+
+  (is (= {:action      :with
+          :children    '({:action      :debug
+                          :description {:message "Print the event in the logs as debug"}})
+          :description {:message "Merge the events with the provided fields"
+                        :params  "{:service \"foo\", :state \"critical\"}"}
+          :params      [{:service "foo"
+                         :state   "critical"}]}
+         (sut/with {:service "foo" :state "critical"}
+           (sut/debug))))
+
+  (is (= {:action      :fixed-event-window
+          :children    '({:action      :coll-rate
+                          :children    ({:action      :debug
+                                         :description {:message "Print the event in the logs as debug"}})
+                          :description {:message "Takes a list of events and computes their rates"}})
+          :description {:message "Create a fixed event window of size 3"}
+          :params      [{:size 3}]}
+         (sut/fixed-event-window {:size 3}
+           (sut/coll-rate
+            (sut/debug)))))
+
+  (is (= {:action      :fixed-event-window
+          :children    '({:action      :sflatten
+                          :children    ({:action      :info
+                                         :description {:message "Print the event in the logs as info"}})
+                          :description {:message "Send events from a list downstream one by one"}})
+          :description {:message "Create a fixed event window of size 5"}
+          :params      [{:size 5}]}
+         (sut/fixed-event-window {:size 5}
+           (sut/sflatten
+            (sut/info)))))
+
+  (is (= {:action      :tag
+          :children    '({:action      :info
+                          :description {:message "Print the event in the logs as info"}})
+          :description {:message "Tag events with %sfoo"}
+          :params      ["foo"]}
+         (sut/tag "foo"
+           (sut/info))))
+
+  (is (= {:action      :tag
+          :children    '({:action      :info
+                          :description {:message "Print the event in the logs as info"}})
+          :description {:message "Tag events with %s[\"foo\" \"bar\"]"}
+          :params      [["foo"
+                         "bar"]]}
+         (sut/tag ["foo" "bar"]
+           (sut/info))))
+
+  (is (= {:action      :untag
+          :children    nil
+          :description {:message "Remove tags foo"}
+          :params      ["foo"]}
+         (sut/untag "foo")))
+
+  (is (= {:action      :untag
+          :children    nil
+          :description {:message "Remove tags [\"foo\" \"bar\"]"}
+          :params      [["foo"
+                         "bar"]]}
+         (sut/untag ["foo" "bar"])))
+
+  (is (= {:action      :tagged-all
+          :children    '({:action      :info
+                          :description {:message "Print the event in the logs as info"}})
+          :description {:message "Keep only events with tagged foo"}
+          :params      ["foo"]}
+         (sut/tagged-all "foo"
+           (sut/info))))
+
+  (is (= {:action      :tagged-all
+          :children    '({:action      :info
+                          :description {:message "Print the event in the logs as info"}})
+          :description {:message "Keep only events with tagged [\"foo\" \"bar\"]"}
+          :params      [["foo"
+                         "bar"]]}
+         (sut/tagged-all ["foo" "bar"]
+           (sut/info))))
+
+  (is (= {:action      :ddt
+          :children    '({:action      :info
+                          :description {:message "Print the event in the logs as info"}})
+          :description {:message "Differentiate metrics with respect to time"}
+          :params      [false]}
+         (sut/ddt
+          (sut/info))))
+
+  (is (= {:action      :scale
+          :children    '({:action      :info
+                          :description {:message "Print the event in the logs as info"}})
+          :description {:message "Multiples the :metric field by 1000"}
+          :params      [1000]}
+         (sut/scale 1000
+           (sut/info))))
+
+  (is (= {:action      :split
+          :children    [{:action      :debug
+                         :description {:message "Print the event in the logs as debug"}}
+                        {:action      :info
+                         :description {:message "Print the event in the logs as info"}}
+                        {:action      :error
+                         :description {:message "Print the event in the logs as error"}}]
+          :description {:message "Split metrics by the clauses provided as parameter"
+                        :params  [[:> :metric 10]
+                                  [:> :metric 5]
+                                  [:always-true]]}
+          :params      [[[:> :metric 10]
+                         [:> :metric 5]
+                         [:always-true]]]}
+         (sut/split
+          [:> :metric 10] (sut/debug)
+          [:> :metric 5] (sut/info)
+          (sut/error))))
+
+  (is (= {:action      :throttle
+          :children    '({:action      :error
+                          :description {:message "Print the event in the logs as error"}})
+          :description {:message "Let 3 events pass at most every 10 seconds"}
+          :params      [{:count    3
+                         :duration 10}]}
+         (sut/throttle {:count 3 :duration 10}
+           (sut/error))))
+
+  (is (= {:action      :moving-event-window
+          :children    '({:action      :coll-mean
+                          :children    ({:action      :info
+                                         :description {:message "Print the event in the logs as info"}})
+                          :description {:message "Computes the mean of events"}})
+          :description {:message "Build moving event window of size 5"}
+          :params      [{:size 5}]}
+         (sut/moving-event-window {:size 5}
+           (sut/coll-mean (sut/info)))))
+
+  (is (= {:action      :over
+          :children    '({:action      :info
+                          :description {:message "Print the event in the logs as info"}})
+          :description {:message "Keep events with metrics greater than 10"}
+          :params      [10]}
+         (sut/over 10
+           (sut/info))))
+
+  (is (= {:action      :under
+          :children    '({:action      :info
+                          :description {:message "Print the event in the logs as info"}})
+          :description {:message "Keep events with metrics under than 10"}
+          :params      [10]}
+         (sut/under 10
+           (sut/info))))
+
+  (is (= {:action      :changed
+          :children    nil
+          :description {:message "Passes on events only if the field :state differs from the previous one (default ok)"}
+          :params      [{:field :state
+                         :init  "ok"}]}
+         (sut/changed {:field :state :init "ok"})))
+
+  (is (= {:action      :changed
+          :children    nil
+          :description {:message "Passes on events only if the field [:nested :field] differs from the previous one (default ok)"}
+          :params      [{:field [:nested
+                                 :field]
+                         :init  "ok"}]}
+         (sut/changed {:field [:nested :field] :init "ok"})))
+
+  (is (= {:action      :project
+          :children    '({:action      :coll-quotient
+                          :children    ({:action      :with
+                                         :children    nil
+                                         :description {:message "Set the field :service to enqueues per dequeue"}
+                                         :params      [{:service "enqueues per dequeue"}]}
+                                        {:action      :info
+                                         :description {:message "Print the event in the logs as info"}})
+                          :description {:message "Get the event with the biggest metric"}})
+          :description {:message "return the most recent events matching the conditions"
+                        :params  "[[:= :service \"enqueues\"] [:= :service \"dequeues\"]]"}
+          :params      [[[:= :service "enqueues"]
+                         [:= :service "dequeues"]]]}
+         (sut/project [[:= :service "enqueues"]
+                       [:= :service "dequeues"]]
+           (sut/coll-quotient
+            (sut/with :service "enqueues per dequeue")
+            (sut/info)))))
+
+  (is (= {:action      :index
+          :description {:message "Insert events into the index using the provided fields as keys"
+                        :params  "[:host :service]"}
+          :params      [[:host :service]]}
+         (sut/index [:host :service])))
+
+  (is (= {:action      :fixed-time-window
+          :children    '({:action      :coll-count
+                          :children    ({:action      :debug
+                                         :description {:message "Print the event in the logs as debug"}})
+                          :description {:message "Count the number of events"}})
+          :description {:message "Build 60 seconds fixed time windows"}
+          :params      [{:aggr-fn  :fixed-time-window
+                         :duration 60}]}
+         (sut/fixed-time-window {:duration 60}
+           (sut/coll-count
+            (sut/debug)))))
+
+  (is (= {:action      :sdissoc
+          :children    '({:action      :info
+                          :description {:message "Print the event in the logs as info"}})
+          :description {:message "Remove key(s) :host from events"}
+          :params      [[:host]]}
+         (sut/sdissoc :host
+           (sut/info))))
+
+  (is (= {:action      :sdissoc
+          :children    '({:action      :info
+                          :description {:message "Print the event in the logs as info"}})
+          :description {:message "Remove key(s) [:environment :host] from events"}
+          :params      [[:environment :host]]}
+         (sut/sdissoc [:environment :host]
+           (sut/info))))
+
+  (is (= {:action      :sdissoc
+          :children    '({:action      :info
+                          :description {:message "Print the event in the logs as info"}})
+          :description {:message "Remove key(s) [:environment [:nested :key]] from events"}
+          :params      [[:environment
+                         [:nested :key]]]}
+         (sut/sdissoc [:environment [:nested :key]]
+           (sut/info))))
+
+  (is (= {:action      :fixed-event-window
+          :children    '({:action      :coll-percentiles
+                          :children    nil
+                          :description {:message "Computes percentiles for quantiles [0.5 0.75 0.98 0.99]"}
+                          :params      [[0.5
+                                         0.75
+                                         0.98
+                                         0.99]]})
+          :description {:message "Create a fixed event window of size 10"}
+          :params      [{:size 10}]}
+         (sut/fixed-event-window {:size 10}
+           (sut/coll-percentiles [0.5 0.75 0.98 0.99]))))
+
+  (is (= {:action      :by
+          :children    '({:action      :fixed-time-window
+                          :children    nil
+                          :description {:message "Build 60 seconds fixed time windows"}
+                          :params      [{:aggr-fn  :fixed-time-window
+                                         :duration 60}]})
+          :description {:message "Split streams by field(s) [:host :service]"}
+          :params      [{:fields [:host
+                                  :service]}]}
+         (sut/by {:fields [:host :service]}
+           (sut/fixed-time-window {:duration 60}))))
+
+  (is (= {:action      :by
+          :children    '({:action      :fixed-time-window
+                          :children    nil
+                          :description {:message "Build 60 seconds fixed time windows"}
+                          :params      [{:aggr-fn  :fixed-time-window
+                                         :duration 60}]})
+          :description {:message "Split streams by field(s) [:host :service [:a :nested-key]]"}
+          :params      [{:fields      [:host
+                                       :service
+                                       [:a
+                                        :nested-key]]
+                         :fork-ttl    1800
+                         :gc-interval 3600}]}
+         (sut/by {:fields      [:host :service [:a :nested-key]]
+                  :gc-interval 3600
+                  :fork-ttl    1800}
+           (sut/fixed-time-window {:duration 60}))))
+
+  (is (= {:action      :reinject!
+          :description {:message "Reinject events on the current stream"}
+          :params      [nil]}
+         (sut/reinject!)))
+
+  (is (= {:action      :reinject!
+          :description {:message "Reinject events on stream :foo"}
+          :params      [:foo]}
+         (sut/reinject! :foo)))
+
+  (is (= {:action      :where
+          :children    '({:action      :tap
+                          :description {:message "Save events into the tap :foo"}
+                          :params      [:foo]})
+          :description {:message "Filter events based on the provided condition"
+                        :params  "[:= :service \"foo\"]"}
+          :params      [[:= :service "foo"]]}
+         (sut/where [:= :service "foo"]
+           (sut/tap :foo))))
+
+  (is (= {:action      :with
+          :children    '({:action      :tap
+                          :children    nil
+                          :description {:message "Parse the provided fields from json to edn"
+                                        :params  "[:my-field]"}
+                          :params      [[:my-field]]})
+          :description {:message "Set the field :my-field to {\"foo\" \"bar\"}"}
+          :params      [{:my-field {"foo" "bar"}}]}
+         (sut/with :my-field {"foo" "bar"}
+           (sut/json-fields [:my-field]))))
+
+  (is (= {:fobar {:actions {:action      :sdo
+                            :children    '({:action      :info
+                                            :description {:message "Print the event in the logs as info"}})
+                            :description {:message "Forward events to children"}}}
+          :foo   {:actions {:action      :sdo
+                            :children    '({:action      :info
+                                            :description {:message "Print the event in the logs as info"}})
+                            :description {:message "Forward events to children"}}}}
+         (sut/streams
+          (sut/stream {:name :fobar}
+            (sut/info))
+          (sut/stream {:name :foo}
+            (sut/info)))))
+
+  (is (= {:action      :my-custom-action
+          :children    '({:action      :info
+                          :description {:message "Print the event in the logs as info"}})
+          :description {:message "Use the custom action :my-custom-action"
+                        :params  "[\"parameters\"]"}
+          :params      ["parameters"]}
+         (sut/custom :my-custom-action ["parameters"]
+           (sut/info))))
+
+  (is (= {:action      :reaper
+          :children    []
+          :description {:message "Expires events every 5 second and reinject them into the current stream"}
+          :params      [5 nil]}
+         (sut/reaper 5)))
+
+  (is (= {:action      :reaper
+          :children    []
+          :description {:message "Expires events every 5 second and reinject them into the stream :custom-stream"}
+          :params      [5 :custom-stream]}
+         (sut/reaper 5 :custom-stream)))
+
+  (is (= {:action      :sdo
+          :children    '({:action      :to-base64
+                          :children    nil
+                          :description {:message "Encodes field(s) :host to base64"}
+                          :params      [[:host]]}
+                         {:action      :to-base64
+                          :children    nil
+                          :description {:message "Encodes field(s) [:host :service] to base64"}
+                          :params      [[:host :service]]})
+          :description {:message "Forward events to children"}}
+         (sut/sdo
+          ;; you can pass one field
+          (sut/to-base64 :host)
+          ;; or a list of fields
+          (sut/to-base64 [:host :service]))))
+
+  (is (= {:action      :sdo
+          :children    '({:action      :from-base64
+                          :children    nil
+                          :description {:message "Decodes field(s) :host from base64"}
+                          :params      [[:host]]}
+                         {:action      :from-base64
+                          :children    nil
+                          :description {:message "Decodes field(s) [:host :service] from base64"}
+                          :params      [[:host :service]]})
+          :description {:message "Forward events to children"}}
+         (sut/sdo
+          ;; you can pass one field
+          (sut/from-base64 :host)
+          ;; or a list of fields
+          (sut/from-base64 [:host :service]))))
+
+  (is (= {:action      :sformat
+          :children    nil
+          :description {:message "Set :format-test to value %s-foo-%s using fields [:host :service]"}
+          :params      ["%s-foo-%s" :format-test [:host :service]]}
+         (sut/sformat "%s-foo-%s" :format-test [:host :service])))
+
+  (is (= {:action      :publish!
+          :children    []
+          :description {:message "Publish events into the channel :my-channel"}
+          :params      [:my-channel]}
+         (sut/publish! :my-channel)))
+
+  (is (= {:action      :fixed-time-window
+          :children    '({:action      :coll-top
+                          :children    ({:action      :info
+                                         :description {:message "Print the event in the logs as info"}})
+                          :description {:message "Returns top 5 events with the highest metrics"}
+                          :params      [5]})
+          :description {:message "Build 60 seconds fixed time windows"}
+          :params      [{:aggr-fn  :fixed-time-window
+                         :duration 60}]}
+         (sut/fixed-time-window {:duration 60}
+           (sut/coll-top 5
+             (sut/info)))))
+
+  (is (= {:action      :fixed-time-window
+          :children    '({:action      :coll-bottom
+                          :children    ({:action      :info
+                                         :description {:message "Print the event in the logs as info"}})
+                          :description {:message "Returns bottom 5 events with the lowest metrics"}
+                          :params      [5]})
+          :description {:message "Build 60 seconds fixed time windows"}
+          :params      [{:aggr-fn  :fixed-time-window
+                         :duration 60}]}
+         (sut/fixed-time-window {:duration 60}
+           (sut/coll-bottom 5
+             (sut/info)))))
+
+  (is (= {:action      :stable
+          :children    '({:action      :info
+                          :description {:message "Print the event in the logs as info"}})
+          :description {:message "Returns events where the field :state is stable for more than 10 seconds"}
+          :params      [10 :state]}
+         (sut/stable 10 :state
+           (sut/info))))
+
+  (is (= {:action      :stable
+          :children    '({:action      :info
+                          :description {:message "Print the event in the logs as info"}})
+          :description {:message "Returns events where the field [:nested :field] is stable for more than 10 seconds"}
+          :params      [10
+                        [:nested :field]]}
+         (sut/stable 10 [:nested :field]
+           (sut/info))))
+
+  (is (= {:action      :rename-keys
+          :children    nil
+          :description {:message "Rename events keys"
+                        :params  "{:host :service, :environment :env}"}
+          :params      [{:environment :env
+                         :host        :service}]}
+         (sut/rename-keys {:host        :service
+                           :environment :env})))
+
+  (is (= {:action      :keep-keys
+          :children    '({:action      :info
+                          :description {:message "Print the event in the logs as info"}})
+          :description {:message "Keep only the specified keys from events"
+                        :params  "[:host :metric :time :environment :description]"}
+          :params      [[:host :metric :time :environment :description]]}
+         (sut/keep-keys [:host :metric :time :environment :description]
+           (sut/info))))
+
+  (is (= {:action      :keep-keys
+          :children    '({:action      :info
+                          :description {:message "Print the event in the logs as info"}})
+          :description {:message "Keep only the specified keys from events"
+                        :params  "[:host :metric :time [:a :nested-key]]"}
+          :params      [[:host :metric :time [:a :nested-key]]]}
+         (sut/keep-keys [:host :metric :time [:a :nested-key]]
+           (sut/info))))
+
+  (is (= {:action      :sum
+          :children    '({:action      :info
+                          :description {:message "Print the event in the logs as info"}})
+          :description {:message "Sum the events field from the last 10 seconds"}
+          :params      [{:aggr-fn  :+
+                         :duration 10}]}
+         (sut/sum {:duration 10}
+           (sut/info))))
+
+  (is (= {:action      :sum
+          :children    '({:action      :info
+                          :description {:message "Print the event in the logs as info"}})
+          :description {:message "Sum the events field from the last 10 seconds"}
+          :params      [{:aggr-fn  :+
+                         :delay    5
+                         :duration 10}]}
+         (sut/sum {:duration 10 :delay 5}
+           (sut/info))))
+
+  (is (= {:action      :top
+          :children    '({:action      :info
+                          :description {:message "Print the event in the logs as info"}})
+          :description {:message "Get the max event from the last 10 seconds"}
+          :params      [{:aggr-fn  :max
+                         :duration 10}]}
+         (sut/top {:duration 10}
+           (sut/info))))
+
+  (is (= {:action      :top
+          :children    '({:action      :info
+                          :description {:message "Print the event in the logs as info"}})
+          :description {:message "Get the max event from the last 10 seconds"}
+          :params      [{:aggr-fn  :max
+                         :delay    5
+                         :duration 10}]}
+         (sut/top {:duration 10 :delay 5}
+           (sut/info))))
+
+  (is (= {:action      :bottom
+          :children    '({:action      :info
+                          :description {:message "Print the event in the logs as info"}})
+          :description {:message "Get the min event from the last 10 seconds"}
+          :params      [{:aggr-fn  :min
+                         :duration 10}]}
+         (sut/bottom {:duration 10}
+           (sut/info))))
+
+  (is (= {:action      :bottom
+          :children    '({:action      :info
+                          :description {:message "Print the event in the logs as info"}})
+          :description {:message "Get the min event from the last 10 seconds"}
+          :params      [{:aggr-fn  :min
+                         :delay    5
+                         :duration 10}]}
+         (sut/bottom {:duration 10 :delay 5}
+           (sut/info))))
+
+  (is (= {:action      :mean
+          :children    '({:action      :info
+                          :description {:message "Print the event in the logs as info"}})
+          :description {:message "Get the min of events from the last 10 seconds"}
+          :params      [{:aggr-fn  :mean
+                         :duration 10}]}
+         (sut/mean {:duration 10}
+           (sut/info))))
+
+  (is (= {:action      :mean
+          :children    '({:action      :info
+                          :description {:message "Print the event in the logs as info"}})
+          :description {:message "Get the min of events from the last 10 seconds"}
+          :params      [{:aggr-fn  :mean
+                         :delay    5
+                         :duration 10}]}
+         (sut/mean {:duration 10 :delay 5}
+           (sut/info))))
+
+  (is (= {:action      :fixed-time-window
+          :children    '({:action      :coll-max
+                          :children    ({:action      :info
+                                         :description {:message "Print the event in the logs as info"}})
+                          :description {:message "Get the event with the biggest metric"}})
+          :description {:message "Build 60 seconds fixed time windows"}
+          :params      [{:aggr-fn  :fixed-time-window
+                         :duration 60}]}
+         (sut/fixed-time-window {:duration 60}
+           (sut/coll-max
+            (sut/info)))))
+
+  (is (= {:action      :fixed-time-window
+          :children    '({:action      :coll-max
+                          :children    ({:action      :info
+                                         :description {:message "Print the event in the logs as info"}})
+                          :description {:message "Get the event with the biggest metric"}})
+          :description {:message "Build 60 seconds fixed time windows"}
+          :params      [{:aggr-fn  :fixed-time-window
+                         :delay    30
+                         :duration 60}]}
+         (sut/fixed-time-window {:duration 60 :delay 30}
+           (sut/coll-max
+            (sut/info)))))
+
+  (is (= {:action      :ssort
+          :children    '({:action      :info
+                          :description {:message "Print the event in the logs as info"}})
+          :description {:message "Sort events during 10 seconds based on the field :time"}
+          :params      [{:aggr-fn  :ssort
+                         :duration 10
+                         :field    :time
+                         :nested?  false}]}
+         (sut/ssort {:duration 10 :field :time}
+           (sut/info))))
+
+  (is (= {:action      :ssort
+          :children    '({:action      :info
+                          :description {:message "Print the event in the logs as info"}})
+          :description {:message "Sort events during 10 seconds based on the field :time"}
+          :params      [{:aggr-fn  :ssort
+                         :delay    10
+                         :duration 10
+                         :field    :time
+                         :nested?  false}]}
+         (sut/ssort {:duration 10 :field :time :delay 10}
+           (sut/info))))
+
+  #_(is (= {:action      :smax
+            :children    '({:action      :info
+                            :description {:message "Print the event in the logs as info"}})
+            :description {:message "Send downstream the event with the biggest :metric every time it receives an event"}
+            :params      [{:condition ""}]}
+           (sut/smax
+            (sut/info))))
+
+  #_(is (= {:action      :smin
+            :children    '({:action      :info
+                            :description {:message "Print the event in the logs as info"}})
+            :description {:message "Send downstream the event with the lowest :metric every time it receives an event"}
+            :params      [{:condition ""}]}
+           (sut/smin
+            (sut/info))))
+
+  (is (= {:action      :smin
+          :children    '({:action      :info
+                          :description {:message "Print the event in the logs as info"}})
+          :description {:message "Extract the key :base-event from the event and send its value downstream"}
+          :params      [:base-event]}
+         (sut/extract :base-event
+           (sut/info)))))

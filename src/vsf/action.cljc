@@ -500,7 +500,7 @@
 (defn output!
   "Push events to an external system.
 
-  Outputs are configured into the main Mirabelle configuration file.
+  Outputs are configured into the main configuration file.
   If you create a new output named `:influxdb`
   for example, you can use output! to push all events into this I/O:
 
@@ -1178,10 +1178,11 @@
    streams))
 
 
+;; TODO how to provide custom actions
 (defn custom
   "Executes a custom action.
-  Custom actions are defined in the Mirabelle configuration file.
-  The actomn can then be called (by name) using this `custom` action.
+  Custom actions are defined in the configuration file.
+  The action can then be called (by name) using this `custom` action.
 
   ```clojure
   (custom :my-custom-action [\"parameters\"]
@@ -1634,7 +1635,7 @@
    :description {:message "Takes a list of events and computes the increase of the :metric field"}
    :children    children})
 
-
+;; TODO not serializable
 (defn smax
   "Send downstream the event with the biggest :metric every time it receives an event
 
@@ -1658,7 +1659,7 @@
                                    (> (:metric event) (:metric result))))}]
    :children    children})
 
-
+;; TODO not serializable
 (defn smin
   "Send downstream the event with the lowest :metric every time it receives an event
 
