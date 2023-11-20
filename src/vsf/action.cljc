@@ -1153,6 +1153,7 @@
    :description {:message "Catches exceptions in the first action and reinject errors into the second one"}
    :children    children})
 
+
 (defn stream
   "Creates a new stream. This action takes a map where the `:name` key, which
   will be the name of the stream, is mandatory."
@@ -1635,7 +1636,7 @@
    :description {:message "Takes a list of events and computes the increase of the :metric field"}
    :children    children})
 
-;; TODO not serializable
+
 (defn smax
   "Send downstream the event with the biggest :metric every time it receives an event
 
@@ -1654,12 +1655,9 @@
   [& children]
   {:action      :smax
    :description {:message "Send downstream the event with the biggest :metric every time it receives an event"}
-   :params      [{:condition (fn [event result]
-                               (or (not (:metric result))
-                                   (> (:metric event) (:metric result))))}]
    :children    children})
 
-;; TODO not serializable
+
 (defn smin
   "Send downstream the event with the lowest :metric every time it receives an event
 
@@ -1672,15 +1670,12 @@
   are injected, `info` will receive:
 
   ```clojure
-  {:time 1 :metric 10} {:time 2 :metric 3} {:time 3 :metric 11}
+  {:time 1 :metric 10} {:time 2 :metric 3} {:time 2 :metric 3}
   ```
   "
   [& children]
   {:action      :smin
    :description {:message "Send downstream the event with the lowest :metric every time it receives an event"}
-   :params      [{:condition (fn [event result]
-                               (or (not (:metric result))
-                                   (< (:metric event) (:metric result))))}]
    :children    children})
 
 
