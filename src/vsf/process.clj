@@ -1101,14 +1101,28 @@
           (call-rescue (assoc most-recent-event :metric new-metric) children))))))
 
 
-(defn scondition*
-  [_ {:keys [condition]} & children]
+(defn smax*
+  [_ & children]
   (let [result (atom {})]
     (fn [event]
-      (if (condition event @result)
-        (do (reset! result event)
-            (call-rescue event children))
-        (call-rescue @result children)))))
+      (let [metric (get @result :metric)]
+        (if (or (not metric)
+                (> (:metric event) metric))
+          (do (reset! result event)
+              (call-rescue event children))
+          (call-rescue @result children))))))
+
+
+(defn smin*
+  [_ & children]
+  (let [result (atom {})]
+    (fn [event]
+      (let [metric (get @result :metric)]
+        (if (or (not metric)
+                (< (:metric event) metric))
+          (do (reset! result event)
+              (call-rescue event children))
+          (call-rescue @result children))))))
 
 
 (defn extract*
@@ -1230,8 +1244,8 @@
    :sdo                 sdo*
    :sflatten            sflatten*
    :sformat             sformat*
-   :smax                scondition*
-   :smin                scondition*
+   :smax                smax*
+   :smin                smin*
    :split               split*
    :ssort               aggregation*
    :stable              stable*

@@ -892,21 +892,19 @@
          (sut/ssort {:duration 10 :field :time :delay 10}
            (sut/info))))
 
-  #_(is (= {:action      :smax
-            :children    '({:action      :info
-                            :description {:message "Print the event in the logs as info"}})
-            :description {:message "Send downstream the event with the biggest :metric every time it receives an event"}
-            :params      [{:condition ""}]}
-           (sut/smax
-            (sut/info))))
+  (is (= {:action      :smax
+          :children    '({:action      :info
+                          :description {:message "Print the event in the logs as info"}})
+          :description {:message "Send downstream the event with the biggest :metric every time it receives an event"}}
+         (sut/smax
+          (sut/info))))
 
-  #_(is (= {:action      :smin
-            :children    '({:action      :info
-                            :description {:message "Print the event in the logs as info"}})
-            :description {:message "Send downstream the event with the lowest :metric every time it receives an event"}
-            :params      [{:condition ""}]}
-           (sut/smin
-            (sut/info))))
+  (is (= {:action      :smin
+          :children    '({:action      :info
+                          :description {:message "Print the event in the logs as info"}})
+          :description {:message "Send downstream the event with the lowest :metric every time it receives an event"}}
+         (sut/smin
+          (sut/info))))
 
   (is (= {:action      :smin
           :children    '({:action      :info

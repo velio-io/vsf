@@ -1400,3 +1400,19 @@
                    {:time 12, :metric 200, :quantile 0.5}
                    {:time 12, :metric 800, :quantile 0.99}
                    {:time 12, :metric 800, :quantile 1}])))
+
+
+(deftest smax*-test
+  (let [[rec state] (recorder)]
+    (test-actions (sut/smax* nil rec)
+                  state
+                  [{:time 1 :metric 10} {:time 2 :metric 3} {:time 3 :metric 11}]
+                  [{:time 1 :metric 10} {:time 1 :metric 10} {:time 3 :metric 11}])))
+
+
+(deftest smin*-test
+  (let [[rec state] (recorder)]
+    (test-actions (sut/smin* nil rec)
+                  state
+                  [{:time 1 :metric 10} {:time 2 :metric 3} {:time 3 :metric 11}]
+                  [{:time 1 :metric 10} {:time 2 :metric 3} {:time 2 :metric 3}])))
