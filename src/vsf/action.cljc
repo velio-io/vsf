@@ -18,7 +18,7 @@
   [spec value]
   (try
     (vsf.spec/assert-spec-valid spec value)
-    (catch Exception e
+    (catch #?(:clj Exception :cljs js/Error) e
       (let [message (format "Invalid call to action '%s' with parameters '%s'"
                             (name spec)
                             (pr-str value))]

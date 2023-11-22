@@ -141,3 +141,18 @@ The resulting EDN could be stored in a file or sent via the wire to another syst
 This namespace is in `.cljc` format so could be used on for frontend and backend. 
 
 Check the `vsf.action` namespace for the full list of available actions and their descriptions.
+
+### Run tests
+
+in clj environment
+
+```shell
+lein test
+```
+
+in browser (cljs)
+
+```shell
+shadow-cljs watch test
+```
+after build is done, navigate to http://localhost:8021/
