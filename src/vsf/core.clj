@@ -18,12 +18,11 @@
     (->> stream (map (partial compile! context)) doall)
 
     :else
-    (let [action      (:action stream)
-          func-action (get process/action->fn action)
-          func        (if (symbol? func-action)
-                        (requiring-resolve func-action)
-                        func-action)
-          params      (:params stream)]
+    (let [action (:action stream)
+          func   (if (symbol? action)
+                   (requiring-resolve action)
+                   (get process/action->fn action))
+          params (:params stream)]
       ;; verify if the fn is found or if we are in the special
       ;; case of the by stream
       (if (or (= :by action) func)

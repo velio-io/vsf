@@ -167,7 +167,7 @@
         stream   {:name        "my-stream"
                   :description "foo"
                   :actions     (a/with {:foo 1 :metric 2}
-                                       (a/test-action recorder))}
+                                 (a/test-action recorder))}
         {:keys [entrypoint]} (sut/compile-stream! {} stream)]
     (entrypoint {:metric 1 :time 1})
     (is (= [{:metric 2 :time 1 :foo 1}] @recorder)))
@@ -175,7 +175,7 @@
         stream   {:name        "my-stream"
                   :description "foo"
                   :actions     (a/with :metric 2
-                                       (a/test-action recorder))}
+                                 (a/test-action recorder))}
         {:keys [entrypoint]} (sut/compile-stream! {} stream)]
     (entrypoint {:metric 1 :time 1})
     (is (= [{:metric 2 :time 1}] @recorder))))
@@ -187,8 +187,8 @@
           stream   {:name        "my-stream"
                     :description "foo"
                     :actions     (a/by {:fields [:host]}
-                                       (a/fixed-event-window {:size 2}
-                                         (a/test-action recorder)))}
+                                   (a/fixed-event-window {:size 2}
+                                     (a/test-action recorder)))}
           {:keys [entrypoint]} (sut/compile-stream! {} stream)]
       (entrypoint {:host "foo" :metric 1 :time 1})
       (entrypoint {:host "foo" :metric 2 :time 1})
@@ -217,8 +217,8 @@
           stream   {:name        "my-stream"
                     :description "foo"
                     :actions     (a/by {:fields [:host [:nested :field :a]]}
-                                       (a/fixed-event-window {:size 2}
-                                         (a/test-action recorder)))}
+                                   (a/fixed-event-window {:size 2}
+                                     (a/test-action recorder)))}
           {:keys [entrypoint]} (sut/compile-stream! {} stream)]
       (entrypoint {:host "foo" :nested {:field {:a "foo"}} :metric 1 :time 1})
       (entrypoint {:host "foo" :nested {:field {:a "foo"}} :metric 2 :time 1})
@@ -240,8 +240,8 @@
                     :actions     (a/by {:fields      [:host]
                                         :gc-interval 10
                                         :fork-ttl    10}
-                                       (a/fixed-event-window {:size 2}
-                                         (a/test-action recorder)))}
+                                   (a/fixed-event-window {:size 2}
+                                     (a/test-action recorder)))}
           {:keys [entrypoint]} (sut/compile-stream! {} stream)]
       (entrypoint {:host "foo" :metric 1 :time 1})
       (entrypoint {:host "foo" :metric 2 :time 4})
@@ -260,8 +260,8 @@
                     :actions     (a/by {:fields      [:host]
                                         :gc-interval 10
                                         :fork-ttl    10}
-                                       (a/fixed-event-window {:size 2}
-                                         (a/test-action recorder)))}
+                                   (a/fixed-event-window {:size 2}
+                                     (a/test-action recorder)))}
           {:keys [entrypoint]} (sut/compile-stream! {} stream)]
       (entrypoint {:host "foo" :metric 1 :time 1})
       (entrypoint {:host "foo" :metric 4 :time 15})
@@ -287,8 +287,8 @@
                     :actions     (a/by {:fields      [:host]
                                         :gc-interval 10
                                         :fork-ttl    10}
-                                       (a/fixed-event-window {:size 2}
-                                         (a/test-action recorder)))}
+                                   (a/fixed-event-window {:size 2}
+                                     (a/test-action recorder)))}
           {:keys [entrypoint]} (sut/compile-stream! {} stream)]
       (entrypoint {:host "foo" :metric 1 :time 1})
       (entrypoint {:host "foo" :metric 4 :time 15})
@@ -708,7 +708,7 @@
         stream   {:name        "my-stream"
                   :description "foo"
                   :actions     (a/sum {:duration 10}
-                                      (a/test-action recorder))}
+                                 (a/test-action recorder))}
         {:keys [entrypoint]} (sut/compile-stream! {} stream)]
     (entrypoint {:time 0 :metric 10})
     (entrypoint {:time 7 :metric 1})
@@ -731,7 +731,7 @@
         stream   {:name        "my-stream"
                   :description "foo"
                   :actions     (a/mean {:duration 10}
-                                       (a/test-action recorder))}
+                                 (a/test-action recorder))}
         {:keys [entrypoint]} (sut/compile-stream! {} stream)]
     (entrypoint {:time 0 :metric 10})
     (entrypoint {:time 7 :metric 1})
@@ -750,7 +750,7 @@
           stream   {:name        "my-stream"
                     :description "foo"
                     :actions     (a/top {:duration 10}
-                                        (a/test-action recorder))}
+                                   (a/test-action recorder))}
           {:keys [entrypoint]} (sut/compile-stream! {} stream)]
       (entrypoint {:time 0 :metric 10})
       (entrypoint {:time 7 :metric 1})
@@ -771,7 +771,7 @@
           stream   {:name        "my-stream"
                     :description "foo"
                     :actions     (a/top {:duration 10 :delay 25}
-                                        (a/test-action recorder))}
+                                   (a/test-action recorder))}
           {:keys [entrypoint]} (sut/compile-stream! {} stream)]
       (entrypoint {:time 0 :metric 10})
       (entrypoint {:time 7 :metric 1})
@@ -798,7 +798,7 @@
           stream   {:name        "my-stream"
                     :description "foo"
                     :actions     (a/top {:duration 10 :delay 25}
-                                        (a/test-action recorder))}
+                                   (a/test-action recorder))}
           {:keys [entrypoint]} (sut/compile-stream! {} stream)]
       (entrypoint {:time 0 :metric 10})
       (entrypoint {:time 7 :metric 1})
@@ -828,7 +828,7 @@
           stream   {:name        "my-stream"
                     :description "foo"
                     :actions     (a/bottom {:duration 10}
-                                           (a/test-action recorder))}
+                                   (a/test-action recorder))}
           {:keys [entrypoint]} (sut/compile-stream! {} stream)]
       (entrypoint {:time 0 :metric 10})
       (entrypoint {:time 7 :metric 1})
@@ -849,7 +849,7 @@
           stream   {:name        "my-stream"
                     :description "foo"
                     :actions     (a/bottom {:duration 10 :delay 25}
-                                           (a/test-action recorder))}
+                                   (a/test-action recorder))}
           {:keys [entrypoint]} (sut/compile-stream! {} stream)]
       (entrypoint {:time 0 :metric 10})
       (entrypoint {:time 7 :metric 1})
@@ -980,3 +980,19 @@
               {:time 25 :metric 2/10}
               {:time 35 :metric 1/10}]
              @recorder)))))
+
+
+(deftest custom-action-test
+  (let [recorder (atom [])
+        stream   {:name        "my-stream"
+                  :description "foo"
+                  :actions     (a/custom 'vsf.custom-action-for-test/calc-sum [{:of-keys [:a :b] :as :c}]
+                                 (a/test-action recorder))}
+        {:keys [entrypoint]} (sut/compile-stream! {} stream)]
+
+    (entrypoint {:a 10 :b 20})
+    (entrypoint {:a 11 :b 12 :c 33})
+
+    (is (= [{:a 10 :b 20 :c 30}
+            {:a 11 :b 12 :c 23}]
+           @recorder))))
