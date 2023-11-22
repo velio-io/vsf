@@ -1,9 +1,17 @@
 (ns vsf.spec
+  (:refer-clojure :exclude [format])
   (:require
    [clojure.spec.alpha :as s]
    [clojure.string :as string]
    [vsf.condition :as condition]
+   #?(:cljs [goog.string :as gstring])
+   #?(:cljs [goog.string.format])
    #?(:clj [exoscale.ex :as ex])))
+
+
+(def format
+  #?(:clj  clojure.core/format
+     :cljs gstring/format))
 
 
 (defn not-null

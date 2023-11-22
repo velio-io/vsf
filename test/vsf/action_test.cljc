@@ -1,6 +1,6 @@
 (ns vsf.action-test
   (:require
-   [clojure.test :refer :all]
+   [clojure.test :refer [deftest is]]
    [vsf.action :as sut]))
 
 
