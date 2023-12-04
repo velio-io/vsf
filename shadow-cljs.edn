@@ -1,5 +1,5 @@
-{:source-paths
- ["src" "test"]
+{:lein
+ {:profile "+cljs"}
 
  :dev-http
  {8021 "out/test"}

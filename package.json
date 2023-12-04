@@ -3,5 +3,8 @@
   "version": "0.1.0",
   "devDependencies": {
     "shadow-cljs": "2.26.1"
+  },
+  "scripts": {
+    "cleanup": "rm -rf target .shadow-cljs out"
   }
 }

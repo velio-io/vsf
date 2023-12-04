@@ -228,7 +228,7 @@
     (fn stream [event]
       (let [event-time  (:time event)
             valid-event (condition-fn event)]
-        (when event-time ;; filter events with no time
+        (when event-time                                    ;; filter events with no time
           (let [{ok :ok time :time}
                 (swap! last-changed-state
                        (fn [{ok :ok time :time :as state}]
@@ -1261,3 +1261,13 @@
    :warning             warning*
    :where               where*
    :with                with*})
+
+
+(defmacro compile-completions []
+  (->> action->fn
+       (mapv (fn [[fn-key]]
+               (let [fn-name (name fn-key)
+                     fn-var  (requiring-resolve (symbol "vsf.action" fn-name))]
+                 {:label fn-name
+                  :type  "function"
+                  :info  (-> fn-var meta :doc)})))))
