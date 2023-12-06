@@ -14,4 +14,5 @@
 
   :repl-options {:init-ns vsf.core}
 
-  :profiles {:dev {:dependencies [[vvvvalvalval/scope-capture "0.3.3"]]}})
+  :profiles {:dev  {:dependencies [[vvvvalvalval/scope-capture "0.3.3"]]}
+             :cljs {:dependencies [[thheller/shadow-cljs "2.26.1"]]}})
