@@ -19,6 +19,13 @@
   (not (nil? v)))
 
 
+(defn float-number? [number]
+  #?(:clj  (float? number)
+     :cljs (and (float? number)
+                (not (js/Infinity? number))
+                (not (js/NaN? number)))))
+
+
 (defn ex-invalid-spec
   "Returns an exception when value `x` does not conform to spec `spex`"
   ([spec x]
@@ -147,7 +154,7 @@
                            :seq (s/coll-of keyword?))))))
 
 (s/def ::coll-percentiles
-  (s/cat :points (s/coll-of number?)))
+  (s/cat :points (s/coll-of float-number?)))
 
 (s/def :by/fields
   (s/coll-of (s/or :single keyword?

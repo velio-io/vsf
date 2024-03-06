@@ -37,7 +37,7 @@
 
 (defn format-keywords-params [keywords-string]
   (->> (string/split keywords-string #",")
-       (map keyword)))
+       (map (comp keyword string/trim))))
 
 
 (defn parse-map-params [{:keys [params]}]
@@ -62,6 +62,11 @@
                    (str "[" path-string "]"))
                  (name path))))
        (string/join ",")))
+
+
+(defn parse-paths-single-param [{:keys [params]}]
+  (let [paths (first params)]
+    (parse-paths-params paths)))
 
 
 (defn format-fields-params [{:keys [fields] :as config}]
@@ -1032,6 +1037,17 @@
    :children    children})
 
 
+(defn format-changed-params [{:keys [field] :as config}]
+  (let [field (format-paths-params field)]
+    (assoc config :field field)))
+
+
+(defn parse-changed-params [{:keys [params]}]
+  (let [config (first params)
+        field  (parse-paths-params (:field config))]
+    (assoc config :field field)))
+
+
 (defn changed
   "Passes on events only if the `field` passed as parameter differs
   from the previous one.
@@ -1049,7 +1065,8 @@
   {:control-type   :map
    :control-params {:fields [{:field :field :label "Field" :type :string}
                              {:field :init :label "Initial value" :type :string}]
-                    :parse  'vsf.action/parse-map-params}}
+                    :format 'vsf.action/format-changed-params
+                    :parse  'vsf.action/parse-changed-params}}
   [config & children]
   (valid-action? :vsf.spec/changed [config])
   {:action      :changed
@@ -1130,9 +1147,9 @@
   (sdissoc [:environment [:nested :key]]
     (info))
   ```"
-  {:control-type   :code
-   :control-params {:format 'vsf.action/read-string
-                    :parse  'vsf.action/parse-string-params}}
+  {:control-type   :input
+   :control-params {:format 'vsf.action/format-paths-params
+                    :parse  'vsf.action/parse-paths-single-param}}
   [fields & children]
   (valid-action? :vsf.spec/sdissoc [fields])
   {:action      :sdissoc
@@ -1330,7 +1347,7 @@
 
 
 (defn format-custom-params [{:keys [action params]}]
-  [(keyword action) (read-string params)])
+  (list (keyword action) (read-string params)))
 
 
 (defn parse-custom-params [{:keys [action params]}]
@@ -1361,7 +1378,7 @@
 
 
 (defn format-reaper-params [{:keys [interval destination-stream]}]
-  [interval (keyword destination-stream)])
+  (list interval (keyword destination-stream)))
 
 
 (defn parse-reaper-params [{:keys [params]}]
@@ -1444,7 +1461,7 @@
 
 
 (defn format-sformat-params [{:keys [template target-field fields]}]
-  [template (keyword target-field) (->> fields (string/split #",") (map keyword))])
+  (list template (keyword target-field) (->> fields (string/split #",") (map keyword))))
 
 
 (defn parse-sformat-params [{:keys [params]}]
@@ -1540,7 +1557,7 @@
 
 
 (defn format-stable-params [{:keys [dt field]}]
-  [dt (->> field (string/split #",") (map keyword))])
+  (list dt (->> field (string/split #",") (map keyword))))
 
 
 (defn parse-stable-params [{:keys [params]}]
@@ -1615,11 +1632,6 @@
    :children    children})
 
 
-(defn parse-keep-keys-params [{:keys [params]}]
-  (let [paths (first params)]
-    (parse-paths-params paths)))
-
-
 (defn keep-keys
   "Keep only the specified keys for events.
   ```clojure
@@ -1633,7 +1645,7 @@
   ```"
   {:control-type   :input
    :control-params {:format 'vsf.action/format-paths-params
-                    :parse  'vsf.action/parse-keep-keys-params}}
+                    :parse  'vsf.action/parse-paths-single-param}}
   [keys-to-keep & children]
   (valid-action? :vsf.spec/keep-keys [keys-to-keep])
   {:action      :keep-keys
@@ -1946,6 +1958,16 @@
    :children    children})
 
 
+(defn format-percentiles-map-params [{:keys [percentiles] :as config}]
+  (assoc config :percentiles (format-percentiles-params percentiles)))
+
+
+(defn parse-percentiles-map-params [{:keys [params]}]
+  (let [params-map  (first params)
+        percentiles (parse-percentiles-params {:params [(:percentiles params-map)]})]
+    (assoc params :percentiles percentiles)))
+
+
 (defn percentiles
   {:control-type   :map
    :control-params {:fields [{:field :percentiles :label "Percentiles" :type :string}
@@ -1954,7 +1976,8 @@
                              {:field :delay :label "Delay" :type :number}
                              {:field :highest-trackable-value :label "Highest Trackable Value" :type :number}
                              {:field :lowest-discernible-value :label "Lowest Discernible Value" :type :number}]
-                    :parse  'vsf.action/parse-map-params}}
+                    :format 'vsf.action/format-percentiles-map-params
+                    :parse  'vsf.action/parse-percentiles-map-params}}
   [config & children]
   (valid-action? :vsf.spec/percentiles [config])
   {:action      :percentiles

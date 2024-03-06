@@ -1287,9 +1287,3 @@
        (assoc acc fn-name control)))
    {}
    action->fn))
-
-
-(comment
- (def fn-var (requiring-resolve (symbol "vsf.action" "where")))
- (meta fn-var)
- (compile-controls))
