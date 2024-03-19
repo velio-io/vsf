@@ -37,7 +37,7 @@
 
 (defn format-keywords-params [keywords-string]
   (->> (string/split keywords-string #",")
-       (map (comp keyword string/trim))))
+       (mapv (comp keyword string/trim))))
 
 
 (defn parse-map-params [{:keys [params]}]
@@ -1319,7 +1319,7 @@
                     :parse  'vsf.action/parse-keywords-params}}
   [fields & children]
   (valid-action? :vsf.spec/json-fields [fields])
-  {:action      :tap
+  {:action      :json-fields
    :description {:message "Parse the provided fields from json to edn"
                  :params  (pr-str fields)}
    :params      [(if (keyword? fields) [fields] fields)]
