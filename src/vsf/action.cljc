@@ -226,7 +226,8 @@
   (increment
     (debug))
   ```"
-  {:control-type :no-args}
+  {:control-type :no-args
+   :leaf-action  true}
   []
   {:action      :debug
    :description {:message "Print the event in the logs as debug"}})
@@ -238,7 +239,8 @@
   (increment
     (info))
   ```"
-  {:control-type :no-args}
+  {:control-type :no-args
+   :leaf-action  true}
   []
   {:action      :info
    :description {:message "Print the event in the logs as info"}})
@@ -250,7 +252,8 @@
   (increment
     (debug))
   ```"
-  {:control-type :no-args}
+  {:control-type :no-args
+   :leaf-action  true}
   []
   {:action      :error
    :description {:message "Print the event in the logs as error"}})
@@ -643,7 +646,8 @@
   Outputs are automatically discarded in test mode."
   {:control-type   :input
    :control-params {:format 'cljs.core/keyword
-                    :parse  'vsf.action/parse-keyword-params}}
+                    :parse  'vsf.action/parse-keyword-params}
+   :leaf-action    true}
   [output-name]
   (valid-action? :vsf.spec/output! [output-name])
   {:action      :output!
@@ -1111,7 +1115,8 @@
   This example will index events by host and services."
   {:control-type   :input
    :control-params {:format 'vsf.action/format-keywords-params
-                    :parse  'vsf.action/parse-keywords-params}}
+                    :parse  'vsf.action/parse-keywords-params}
+   :leaf-action    true}
   [labels]
   (valid-action? :vsf.spec/index [labels])
   {:action      :index
@@ -1244,7 +1249,8 @@
   This example reinjects events into the stream named `:foo`."
   {:control-type   :input
    :control-params {:format 'cljs.core/keyword
-                    :parse  'vsf.action/parse-keyword-params}}
+                    :parse  'vsf.action/parse-keyword-params}
+   :leaf-action    true}
   ([]
    (reinject! nil))
   ([destination-stream]
@@ -1296,7 +1302,8 @@
   named `:foo`"
   {:control-type   :input
    :control-params {:format 'cljs.core/keyword
-                    :parse  'vsf.action/parse-keyword-params}}
+                    :parse  'vsf.action/parse-keyword-params}
+   :leaf-action    true}
   [tap-name]
   (valid-action? :vsf.spec/tap [tap-name])
   {:action      :tap
@@ -1400,7 +1407,8 @@
    :control-params {:fields [{:field :interval :label "Interval" :type :number}
                              {:field :destination-stream :label "Destination stream" :type :string}]
                     :format 'vsf.action/format-reaper-params
-                    :parse  'vsf.action/parse-reaper-params}}
+                    :parse  'vsf.action/parse-reaper-params}
+   :leaf-action    true}
   ([interval] (reaper interval nil))
   ([interval destination-stream]
    (valid-action? :vsf.spec/reaper [interval destination-stream])
@@ -1507,7 +1515,8 @@
   Users can then subscribe to channels using the websocket engine."
   {:control-type   :input
    :control-params {:format 'cljs.core/keyword
-                    :parse  'vsf.action/parse-keyword-params}}
+                    :parse  'vsf.action/parse-keyword-params}
+   :leaf-action    true}
   [channel]
   (valid-action? :vsf.spec/publish! [channel])
   {:action      :publish!

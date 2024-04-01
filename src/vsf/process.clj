@@ -1278,10 +1278,11 @@
    (fn [acc [fn-key]]
      (let [fn-name (name fn-key)
            fn-var  (requiring-resolve (symbol "vsf.action" fn-name))
-           {:keys [control-type control-params]} (meta fn-var)
+           {:keys [control-type control-params leaf-action]} (meta fn-var)
            control (cond-> {:id           fn-name
                             :label        fn-name
-                            :control-type control-type}
+                            :control-type control-type
+                            :leaf-action  leaf-action}
                            (some? control-params)
                            (assoc :control-params control-params))]
        (assoc acc fn-name control)))
