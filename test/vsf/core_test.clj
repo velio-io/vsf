@@ -652,7 +652,7 @@
                                 (a/coll-increase)
                                 (a/coll-where [:= :service "foo"])
                                 (a/coll-sum)
-                                (a/coll-percentiles [0 0.5 1])
+                                (a/coll-percentiles [0.0 0.5 1.0])
                                 (a/coll-mean
                                  (a/sflatten))
                                 (a/coll-max)

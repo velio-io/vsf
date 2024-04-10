@@ -1,7 +1,6 @@
 (ns vsf.action
   (:refer-clojure :exclude [format])
   (:require
-   [clojure.spec.alpha :as s]
    [vsf.spec]
    [clojure.string :as string]
    #?(:cljs [goog.string :as gstring])
@@ -37,6 +36,7 @@
 
 (defn format-keywords-params [keywords-string]
   (->> (string/split keywords-string #",")
+       (remove string/blank?)
        (mapv (comp keyword string/trim))))
 
 
@@ -45,7 +45,9 @@
 
 
 (defn format-paths-params [paths]
-  (->> (string/split paths #",")
+  ;; split strings only by a top level comma
+  (->> (string/split paths #",(?![^\[\]]*])")
+       (remove string/blank?)
        (mapv (fn [f]
                (let [path (read-string f)]
                  (if (vector? path)
@@ -96,13 +98,16 @@
    (first params)))
 
 
-(defn valid-action? [spec value]
+(defn valid-action? [action-name spec value]
   (try
     (vsf.spec/assert-spec-valid spec value)
     (catch #?(:clj Exception :cljs js/Error) e
-      (let [message (format "Invalid call to action '%s' with parameters '%s'"
-                            (name spec)
-                            (pr-str value))]
+      (let [data #?(:clj (ex-data e)
+                    :cljs (.-cause e))
+            message      (format "Invalid call to action '%s' with parameters '%s'. Explanation: %s"
+                                 (name action-name)
+                                 (pr-str value)
+                                 (:explain-data data))]
         #?(:clj  (log/error message)
            :cljs (js/console.error message))
         (throw e)))))
@@ -167,7 +172,7 @@
    :control-params {:format 'vsf.action/read-string
                     :parse  'vsf.action/parse-string-params}}
   [conditions & children]
-  (valid-action? :vsf.spec/where [conditions])
+  (valid-action? :where vsf.spec/where [conditions])
   {:action      :where
    :description {:message "Filter events based on the provided condition"
                  :params  (pr-str conditions)}
@@ -186,7 +191,7 @@
    :control-params {:format 'vsf.action/read-string
                     :parse  'vsf.action/parse-string-params}}
   [conditions & children]
-  (valid-action? :vsf.spec/coll-where [conditions])
+  (valid-action? :coll-where vsf.spec/coll-where [conditions])
   {:action      :coll-where
    :description {:message "Filter a list of events based on the provided condition"
                  :params  (pr-str conditions)}
@@ -270,7 +275,7 @@
    :control-params {:fields [{:field :size :label "Size" :type :number}]
                     :parse  'vsf.action/parse-map-params}}
   [config & children]
-  (valid-action? :vsf.spec/fixed-event-window [config])
+  (valid-action? :fixed-event-window vsf.spec/fixed-event-window [config])
   {:action      :fixed-event-window
    :description {:message (format "Create a fixed event window of size %d"
                                   (:size config))}
@@ -368,7 +373,7 @@
    :control-params {:format 'cljs.core/keyword
                     :parse  'vsf.action/parse-keyword-params}}
   [field & children]
-  (valid-action? :vsf.spec/coll-sort [field])
+  (valid-action? :coll-sort vsf.spec/coll-sort [field])
   {:action      :coll-sort
    :description {:message (format "Sort events based on the field %s" field)}
    :params      [field]
@@ -436,7 +441,7 @@
                              {:field :duration :label "Duration" :type :number}]
                     :parse  'vsf.action/parse-dt-params}}
   [config & children]
-  (valid-action? :vsf.spec/above-dt [config])
+  (valid-action? :above-dt vsf.spec/above-dt [config])
   {:action      :above-dt
    :description {:message
                  (format "Keep events if :metric is greater than %d during %d seconds"
@@ -464,7 +469,7 @@
                              {:field :duration :label "Duration" :type :number}]
                     :parse  'vsf.action/parse-dt-params}}
   [config & children]
-  (valid-action? :vsf.spec/below-dt [config])
+  (valid-action? :below-dt vsf.spec/below-dt [config])
   {:action      :below-dt
    :description {:message
                  (format "Keep events if :metric is lower than %d during %d seconds"
@@ -501,7 +506,7 @@
                              {:field :duration :label "Duration" :type :number}]
                     :parse  'vsf.action/parse-dt-delta-params}}
   [config & children]
-  (valid-action? :vsf.spec/between-dt [config])
+  (valid-action? :between-dt vsf.spec/between-dt [config])
   {:action      :between-dt
    :description {:message
                  (format "Keep events if :metric is between %d and %d during %d seconds"
@@ -533,7 +538,7 @@
                              {:field :duration :label "Duration" :type :number}]
                     :parse  'vsf.action/parse-dt-delta-params}}
   [config & children]
-  (valid-action? :vsf.spec/outside-dt [config])
+  (valid-action? :outside-dt vsf.spec/outside-dt [config])
   {:action      :outside-dt
    :description {:message
                  (format "Keep events if :metric is outside %d and %d during %d seconds"
@@ -567,7 +572,7 @@
    :control-params {:fields [{:field :duration :label "Duration" :type :number}]
                     :parse  'vsf.action/parse-critical-dt-params}}
   [config & children]
-  (valid-action? :vsf.spec/critical-dt [config])
+  (valid-action? :critical-dt vsf.spec/critical-dt [config])
   {:action      :critical-dt
    :description {:message
                  (format "Keep events if the state is critical for more than %d seconds"
@@ -628,7 +633,7 @@
                     :format       'vsf.action/format-default-params
                     :parse        'vsf.action/parse-default-params}}
   [field value & children]
-  (valid-action? :vsf.spec/default [field value])
+  (valid-action? :default vsf.spec/default [field value])
   {:action      :default
    :description {:message (format "Set (if nil) %s to %s" field (str value))}
    :params      [field value]
@@ -649,7 +654,7 @@
                     :parse  'vsf.action/parse-keyword-params}
    :leaf-action    true}
   [output-name]
-  (valid-action? :vsf.spec/output! [output-name])
+  (valid-action? :output! vsf.spec/output! [output-name])
   {:action      :output!
    :description {:message (format "Forward events to the output %s" output-name)}
    :params      [output-name]})
@@ -677,7 +682,7 @@
                     :format 'vsf.action/format-fields-params
                     :parse  'vsf.action/parse-fields-params}}
   [config & children]
-  (valid-action? :vsf.spec/coalesce [config])
+  (valid-action? :coalesce vsf.spec/coalesce [config])
   {:action      :coalesce
    :description {:message
                  (format "Returns a list of the latest non-expired events for each fields (%d) combinations, every %s seconds"
@@ -765,6 +770,7 @@
 
 (defn format-tag-params [tags]
   (->> (string/split tags #",")
+       (remove string/blank?)
        (map string/trim)))
 
 
@@ -790,7 +796,7 @@
    :control-params {:format 'vsf.action/format-tag-params
                     :parse  'vsf.action/parse-tag-params}}
   [tags & children]
-  (valid-action? :vsf.spec/tag [tags])
+  (valid-action? :tag vsf.spec/tag [tags])
   {:action      :tag
    :description {:message (str "Tag events with %s" tags)}
    :params      [tags]
@@ -812,7 +818,7 @@
    :control-params {:format 'vsf.action/format-tag-params
                     :parse  'vsf.action/parse-tag-params}}
   [tags & children]
-  (valid-action? :vsf.spec/untag [tags])
+  (valid-action? :untag vsf.spec/untag [tags])
   {:action      :untag
    :description {:message (str "Remove tags " tags)}
    :params      [tags]
@@ -835,7 +841,7 @@
    :control-params {:format 'vsf.action/format-tag-params
                     :parse  'vsf.action/parse-tag-params}}
   [tags & children]
-  (valid-action? :vsf.spec/tagged-all [tags])
+  (valid-action? :tagged-all vsf.spec/tagged-all [tags])
   {:action      :tagged-all
    :description {:message (str "Keep only events with tagged " tags)}
    :params      [tags]
@@ -883,7 +889,7 @@
    :control-params {:type  :number
                     :parse 'vsf.action/parse-string-params}}
   [factor & children]
-  (valid-action? :vsf.spec/scale [factor])
+  (valid-action? :scale vsf.spec/scale [factor])
   {:action      :scale
    :description {:message (str "Multiples the :metric field by " factor)}
    :params      [factor]
@@ -918,7 +924,7 @@
                              (update :children conj clause)
                              (update :clauses-fn conj [:always-true]))))
                      {:clauses-fn [] :children []}))]
-    (valid-action? (s/coll-of :vsf.spec/condition) clauses-fn)
+    (valid-action? :split vsf.spec/conditions clauses-fn)
     {:action      :split
      :description {:message (format "Split metrics by the clauses provided as parameter")
                    :params  clauses-fn}
@@ -941,7 +947,7 @@
                              {:field :duration :label "Duration" :type :number}]
                     :parse  'vsf.action/parse-map-params}}
   [config & children]
-  (valid-action? :vsf.spec/throttle [config])
+  (valid-action? :throttle vsf.spec/throttle [config])
   {:action      :throttle
    :description {:message (format "Let %d events pass at most every %d seconds"
                                   (:count config)
@@ -963,7 +969,7 @@
    :control-params {:fields [{:field :size :label "Size" :type :number}]
                     :parse  'vsf.action/parse-map-params}}
   [config & children]
-  (valid-action? :vsf.spec/moving-event-window [config])
+  (valid-action? :moving-event-window vsf.spec/moving-event-window [config])
   {:action      :moving-event-window
    :description {:message (format "Build moving event window of size %s"
                                   (:size config))}
@@ -988,7 +994,7 @@
                     :format :ratio
                     :parse  'vsf.action/parse-ration-params}}
   [ratio & children]
-  (valid-action? :vsf.spec/ewma-timeless [ratio])
+  (valid-action? :ewma-timeless vsf.spec/ewma-timeless [ratio])
   {:action      :ewma-timeless
    :description {:message "Exponential weighted moving average"}
    :params      [ratio]
@@ -1011,7 +1017,7 @@
                     :format :grater-than
                     :parse  'vsf.action/parse-grater-than-params}}
   [grater-than & children]
-  (valid-action? :vsf.spec/over [grater-than])
+  (valid-action? :over vsf.spec/over [grater-than])
   {:action      :over
    :description {:message (format "Keep events with metrics greater than %d" grater-than)}
    :params      [grater-than]
@@ -1034,7 +1040,7 @@
                     :format :under
                     :parse  'vsf.action/parse-under-params}}
   [under & children]
-  (valid-action? :vsf.spec/under [under])
+  (valid-action? :under vsf.spec/under [under])
   {:action      :under
    :description {:message (format "Keep events with metrics under than %d" under)}
    :params      [under]
@@ -1072,7 +1078,7 @@
                     :format 'vsf.action/format-changed-params
                     :parse  'vsf.action/parse-changed-params}}
   [config & children]
-  (valid-action? :vsf.spec/changed [config])
+  (valid-action? :changed vsf.spec/changed [config])
   {:action      :changed
    :description {:message (format "Passes on events only if the field %s differs from the previous one (default %s)"
                                   (:field config)
@@ -1098,7 +1104,7 @@
    :control-params {:format 'vsf.action/read-string
                     :parse  'vsf.action/parse-string-params}}
   [conditions & children]
-  (valid-action? :vsf.spec/project [conditions])
+  (valid-action? :project vsf.spec/project [conditions])
   {:action      :project
    :description {:message "return the most recent events matching the conditions"
                  :params  (pr-str conditions)}
@@ -1118,7 +1124,7 @@
                     :parse  'vsf.action/parse-keywords-params}
    :leaf-action    true}
   [labels]
-  (valid-action? :vsf.spec/index [labels])
+  (valid-action? :index vsf.spec/index [labels])
   {:action      :index
    :description {:message "Insert events into the index using the provided fields as keys"
                  :params  (pr-str labels)}
@@ -1156,7 +1162,7 @@
    :control-params {:format 'vsf.action/format-paths-params
                     :parse  'vsf.action/parse-paths-single-param}}
   [fields & children]
-  (valid-action? :vsf.spec/sdissoc [fields])
+  (valid-action? :sdissoc vsf.spec/sdissoc [fields])
   {:action      :sdissoc
    :description {:message (format "Remove key(s) %s from events" (str fields))}
    :params      [(if (keyword? fields) [fields] fields)]
@@ -1165,6 +1171,7 @@
 
 (defn format-percentiles-params [percentiles-string]
   (->> (string/split percentiles-string #",")
+       (remove string/blank?)
        (mapv (fn [p]
                #?(:clj  (Double/parseDouble p)
                   :cljs (js/parseFloat p))))))
@@ -1193,7 +1200,7 @@
    :control-params {:format 'vsf.action/format-percentiles-params
                     :parse  'vsf.action/parse-percentiles-params}}
   [points & children]
-  (valid-action? :vsf.spec/coll-percentiles [points])
+  (valid-action? :coll-percentiles vsf.spec/coll-percentiles [points])
   {:action      :coll-percentiles
    :description {:message (format "Computes percentiles for quantiles %s"
                                   (str points))}
@@ -1228,7 +1235,7 @@
                     :format 'vsf.action/format-fields-params
                     :parse  'vsf.action/parse-fields-params}}
   [config & children]
-  (valid-action? :vsf.spec/by [config])
+  (valid-action? :by vsf.spec/by [config])
   {:action      :by
    :description {:message (str "Split streams by field(s) " (:fields config))}
    :params      [config]
@@ -1254,7 +1261,7 @@
   ([]
    (reinject! nil))
   ([destination-stream]
-   (valid-action? :vsf.spec/reinject [destination-stream])
+   (valid-action? :reinject! vsf.spec/reinject [destination-stream])
    {:action      :reinject!
     :description {:message (format "Reinject events on %s"
                                    (if destination-stream
@@ -1274,7 +1281,7 @@
    :control-params {:format 'cljs.core/keyword
                     :parse  'vsf.action/parse-keyword-params}}
   [queue-name & children]
-  (valid-action? :vsf.spec/async-queue! [queue-name])
+  (valid-action? :async-queue! vsf.spec/async-queue! [queue-name])
   {:action      :async-queue!
    :description {:message (format "Execute the children into the queue %s"
                                   queue-name)}
@@ -1305,7 +1312,7 @@
                     :parse  'vsf.action/parse-keyword-params}
    :leaf-action    true}
   [tap-name]
-  (valid-action? :vsf.spec/tap [tap-name])
+  (valid-action? :tap vsf.spec/tap [tap-name])
   {:action      :tap
    :description {:message (format "Save events into the tap %s" tap-name)}
    :params      [tap-name]})
@@ -1325,7 +1332,7 @@
    :control-params {:format 'vsf.action/format-keywords-params
                     :parse  'vsf.action/parse-keywords-params}}
   [fields & children]
-  (valid-action? :vsf.spec/json-fields [fields])
+  (valid-action? :json-fields vsf.spec/json-fields [fields])
   {:action      :json-fields
    :description {:message "Parse the provided fields from json to edn"
                  :params  (pr-str fields)}
@@ -1411,7 +1418,7 @@
    :leaf-action    true}
   ([interval] (reaper interval nil))
   ([interval destination-stream]
-   (valid-action? :vsf.spec/reaper [interval destination-stream])
+   (valid-action? :reaper vsf.spec/reaper [interval destination-stream])
    {:action      :reaper
     :description {:message (format "Expires events every %d second and reinject them into %s"
                                    interval
@@ -1437,7 +1444,7 @@
                     :parse  'vsf.action/parse-keywords-params}}
   [field & children]
   (let [fields (if (keyword? field) [field] field)]
-    (valid-action? :vsf.spec/to-base64 [fields])
+    (valid-action? :to-base64 vsf.spec/to-base64 [fields])
     {:action      :to-base64
      :description {:message (format "Encodes field(s) %s to base64"
                                     field)}
@@ -1460,7 +1467,7 @@
                     :parse  'vsf.action/parse-keywords-params}}
   [field & children]
   (let [fields (if (keyword? field) [field] field)]
-    (valid-action? :vsf.spec/from-base64 [fields])
+    (valid-action? :from-base64 vsf.spec/from-base64 [fields])
     {:action      :from-base64
      :description {:message (format "Decodes field(s) %s from base64"
                                     field)}
@@ -1469,7 +1476,9 @@
 
 
 (defn format-sformat-params [{:keys [template target-field fields]}]
-  (list template (keyword target-field) (->> fields (string/split #",") (map keyword))))
+  (list template
+        (keyword target-field)
+        (->> fields (string/split #",") (remove string/blank?) (map keyword))))
 
 
 (defn parse-sformat-params [{:keys [params]}]
@@ -1497,7 +1506,7 @@
                     :format 'vsf.action/format-sformat-params
                     :parse  'vsf.action/parse-sformat-params}}
   [template target-field fields & children]
-  (valid-action? :vsf.spec/sformat [template target-field fields])
+  (valid-action? :sformat vsf.spec/sformat [template target-field fields])
   {:action      :sformat
    :description {:message (format "Set %s to value %s using fields %s"
                                   target-field
@@ -1518,7 +1527,7 @@
                     :parse  'vsf.action/parse-keyword-params}
    :leaf-action    true}
   [channel]
-  (valid-action? :vsf.spec/publish! [channel])
+  (valid-action? :publish! vsf.spec/publish! [channel])
   {:action      :publish!
    :description {:message (str "Publish events into the channel " channel)}
    :params      [channel]
@@ -1537,7 +1546,7 @@
                     :format :nb-events
                     :parse  'vsf.action/parse-string-params}}
   [nb-events & children]
-  (valid-action? :vsf.spec/coll-top [nb-events])
+  (valid-action? :coll-top vsf.spec/coll-top [nb-events])
   {:action      :coll-top
    :description {:message (format "Returns top %d events with the highest metrics"
                                   nb-events)}
@@ -1557,7 +1566,7 @@
                     :format :nb-events
                     :parse  'vsf.action/parse-string-params}}
   [nb-events & children]
-  (valid-action? :vsf.spec/coll-bottom [nb-events])
+  (valid-action? :coll-bottom vsf.spec/coll-bottom [nb-events])
   {:action      :coll-bottom
    :description {:message (format "Returns bottom %d events with the lowest metrics"
                                   nb-events)}
@@ -1566,7 +1575,7 @@
 
 
 (defn format-stable-params [{:keys [dt field]}]
-  (list dt (->> field (string/split #",") (map keyword))))
+  (list dt (->> field (string/split #",") (remove string/blank?) (map keyword))))
 
 
 (defn parse-stable-params [{:keys [params]}]
@@ -1600,7 +1609,7 @@
                     :format 'vsf.action/format-stable-params
                     :parse  'vsf.action/parse-stable-params}}
   [dt field & children]
-  (valid-action? :vsf.spec/stable [dt field])
+  (valid-action? :stable vsf.spec/stable [dt field])
   {:action      :stable
    :description {:message (format "Returns events where the field %s is stable for more than %s seconds"
                                   field
@@ -1633,7 +1642,7 @@
    :control-params {:format 'vsf.action/format-rename-params
                     :parse  'vsf.action/parse-rename-params}}
   [replacement & children]
-  (valid-action? :vsf.spec/rename-keys [replacement])
+  (valid-action? :rename-keys vsf.spec/rename-keys [replacement])
   {:action      :rename-keys
    :description {:message "Rename events keys"
                  :params  (pr-str replacement)}
@@ -1656,7 +1665,7 @@
    :control-params {:format 'vsf.action/format-paths-params
                     :parse  'vsf.action/parse-paths-single-param}}
   [keys-to-keep & children]
-  (valid-action? :vsf.spec/keep-keys [keys-to-keep])
+  (valid-action? :keep-keys vsf.spec/keep-keys [keys-to-keep])
   {:action      :keep-keys
    :description {:message "Keep only the specified keys from events"
                  :params  (pr-str keys-to-keep)}
@@ -1682,7 +1691,7 @@
                              {:field :delay :label "Delay" :type :number}]
                     :parse  'vsf.action/parse-map-params}}
   [config & children]
-  (valid-action? :vsf.spec/sum [config])
+  (valid-action? :sum vsf.spec/sum [config])
   {:action      :sum
    :description {:message (format "Sum the events field from the last %s seconds"
                                   (:duration config))}
@@ -1708,7 +1717,7 @@
                              {:field :delay :label "Delay" :type :number}]
                     :parse  'vsf.action/parse-map-params}}
   [config & children]
-  (valid-action? :vsf.spec/top [config])
+  (valid-action? :top vsf.spec/top [config])
   {:action      :top
    :description {:message (format "Get the max event from the last %s seconds"
                                   (:duration config))}
@@ -1734,7 +1743,7 @@
                              {:field :delay :label "Delay" :type :number}]
                     :parse  'vsf.action/parse-map-params}}
   [config & children]
-  (valid-action? :vsf.spec/bottom [config])
+  (valid-action? :bottom vsf.spec/bottom [config])
   {:action      :bottom
    :description {:message (format "Get the min event from the last %s seconds"
                                   (:duration config))}
@@ -1760,7 +1769,7 @@
                              {:field :delay :label "Delay" :type :number}]
                     :parse  'vsf.action/parse-map-params}}
   [config & children]
-  (valid-action? :vsf.spec/mean [config])
+  (valid-action? :mean vsf.spec/mean [config])
   {:action      :mean
    :description {:message (format "Get the min of events from the last %s seconds"
                                   (:duration config))}
@@ -1790,7 +1799,7 @@
                              {:field :delay :label "Delay" :type :number}]
                     :parse  'vsf.action/parse-map-params}}
   [config & children]
-  (valid-action? :vsf.spec/fixed-time-window [config])
+  (valid-action? :fixed-time-window vsf.spec/fixed-time-window [config])
   {:action      :fixed-time-window
    :description {:message (format "Build %d seconds fixed time windows"
                                   (:duration config))}
@@ -1809,7 +1818,7 @@
    :control-params {:fields [{:field :duration :label "Duration" :type :number}]
                     :parse  'vsf.action/parse-map-params}}
   [config & children]
-  (valid-action? :vsf.spec/moving-time-window [config])
+  (valid-action? :moving-time-window vsf.spec/moving-time-window [config])
   {:action      :moving-time-window
    :description {:message (format "Build sliding windows of %d seconds"
                                   (:duration config))}
@@ -1818,7 +1827,8 @@
 
 
 (defn format-ssort-params [{:keys [duration field delay]}]
-  (let [field (string/split field #",")]
+  (let [field (->> (string/split field #",")
+                   (remove string/blank?))]
     {:duration duration
      :delay    delay
      :field    (if (= 1 (count field))
@@ -1860,7 +1870,7 @@
                     :format 'vsf.action/format-ssort-params
                     :parse  'vsf.action/parse-map-params}}
   [config & children]
-  (valid-action? :vsf.spec/ssort [config])
+  (valid-action? :ssort vsf.spec/ssort [config])
   {:action      :ssort
    :description {:message (format "Sort events during %d seconds based on the field %s"
                                   (:duration config)
@@ -1947,7 +1957,7 @@
                     :format 'vsf.action/format-extract-params
                     :parse  'vsf.action/parse-extract-params}}
   [extract-key & children]
-  (valid-action? :vsf.spec/extract [extract-key])
+  (valid-action? :smin vsf.spec/extract [extract-key])
   {:action      :smin
    :description {:message (format "Extract the key %s from the event and send its value downstream" extract-key)}
    :params      [extract-key]
@@ -1960,7 +1970,7 @@
                              {:field :delay :label "Delay" :type :number}]
                     :parse  'vsf.action/parse-map-params}}
   [config & children]
-  (valid-action? :vsf.spec/rate [config])
+  (valid-action? :rate vsf.spec/rate [config])
   {:action      :rate
    :description {:message (format "Computes the rate of received events (by counting them) and emits it every %d seconds" (:duration config))}
    :params      [(assoc config :aggr-fn :rate)]
@@ -1988,7 +1998,7 @@
                     :format 'vsf.action/format-percentiles-map-params
                     :parse  'vsf.action/parse-percentiles-map-params}}
   [config & children]
-  (valid-action? :vsf.spec/percentiles [config])
+  (valid-action? :percentiles vsf.spec/percentiles [config])
   {:action      :percentiles
    :description {:message (format "Computes the quantiles %s" (:percentiles config))}
    :params      [config]

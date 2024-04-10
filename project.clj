@@ -10,7 +10,8 @@
                  [cheshire "5.12.0"]
                  [exoscale/ex "0.4.1"]
                  [com.boundary/high-scale-lib "1.0.6"]
-                 [org.hdrhistogram/HdrHistogram "2.1.12"]]
+                 [org.hdrhistogram/HdrHistogram "2.1.12"]
+                 [metosin/malli "0.15.0"]]
 
   :repl-options {:init-ns vsf.core}
 
