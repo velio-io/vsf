@@ -22,9 +22,7 @@
 
 (defn float-number? [number]
   #?(:clj  (float? number)
-     :cljs (and (float? number)
-                (not (js/Infinity? number))
-                (not (js/NaN? number)))))
+     :cljs (and (float? number) (js/isFinite number))))
 
 
 (defn ex-invalid-spec
@@ -199,8 +197,10 @@
              [:sequential {:min 1} keyword?]]]]]])
 
 (def coll-percentiles
-  [:catn [:point
-          [:sequential {:min 1} [:fn float-number?]]]])
+  [:catn [:points
+          [:sequential {:min 1}
+           [:fn {:error/message "each point should be a decimal number"}
+            float-number?]]]])
 
 (def by-fields
   [:sequential

@@ -991,3 +991,14 @@
 
   (is (= ""
          (sut/parse-string-params {:params [""]}))))
+
+
+(deftest format-percentiles-params-test
+  (is (= [0.5 0.95]
+         (sut/format-percentiles-params "0.5,0.95")))
+
+  (is (= [0.5]
+         (sut/format-percentiles-params "0.5")))
+
+  (is (= []
+         (sut/format-percentiles-params ""))))

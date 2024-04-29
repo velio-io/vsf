@@ -878,6 +878,14 @@
    :children    children})
 
 
+(defn format-scale-params [{:keys [factor]}]
+  factor)
+
+
+(defn parse-scale-params [{:keys [params]}]
+  {:factor (first params)})
+
+
 (defn scale
   "Multiplies the event :metric field by the factor passed as parameter.
   ```clojure
@@ -885,9 +893,10 @@
     (info))
   ```
   This example will multiply the :metric field for all events by 1000."
-  {:control-type   :input
-   :control-params {:type  :number
-                    :parse 'vsf.action/parse-string-params}}
+  {:control-type   :map
+   :control-params {:fields [{:field :factor :label "Factor" :type :number}]
+                    :format 'vsf.action/format-scale-params
+                    :parse  'vsf.action/parse-scale-params}}
   [factor & children]
   (valid-action? :scale vsf.spec/scale [factor])
   {:action      :scale
