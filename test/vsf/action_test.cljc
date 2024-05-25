@@ -609,7 +609,7 @@
            (sut/tap :foo))))
 
   (is (= {:action      :with
-          :children    '({:action      :tap
+          :children    '({:action      :json-fields
                           :children    nil
                           :description {:message "Parse the provided fields from json to edn"
                                         :params  "[:my-field]"}
@@ -913,3 +913,92 @@
           :params      [:base-event]}
          (sut/extract :base-event
            (sut/info)))))
+
+
+(deftest format-paths-params-test
+  (is (= [:host :service]
+         (sut/format-paths-params "host, service")))
+
+  (is (= [:host [:service]]
+         (sut/format-paths-params "host, [service]")))
+
+  (is (= [:host [:service :ip] :url]
+         (sut/format-paths-params "host, [service, ip], url")))
+
+  (is (= []
+         (sut/format-paths-params "")))
+
+  (is (= [:host]
+         (sut/format-paths-params "host"))))
+
+
+(deftest parse-paths-params-test
+  (is (= "host,service"
+         (sut/parse-paths-params [:host :service])))
+
+  (is (= "host"
+         (sut/parse-paths-params ["host"])))
+
+  (is (= ""
+         (sut/parse-paths-params [])))
+
+  (is (= "[host,service]"
+         (sut/parse-paths-params [[:host :service]])))
+
+  (is (= "host,[service,ip],url"
+         (sut/parse-paths-params [:host [:service :ip] :url]))))
+
+
+(deftest parse-keywords-params-test
+  (is (= "foo"
+         (sut/parse-keywords-params {:params [[:foo]]})))
+
+  (is (= "bar"
+         (sut/parse-keywords-params {:params [[:bar]]})))
+
+  (is (= ""
+         (sut/parse-keywords-params {:params [[]]}))))
+
+
+(deftest format-keywords-params-test
+  (is (= [:foo :bar]
+         (sut/format-keywords-params "foo, bar")))
+
+  (is (= [:baz :qux]
+         (sut/format-keywords-params "baz, qux")))
+
+  (is (= []
+         (sut/format-keywords-params ""))))
+
+
+(deftest parse-map-params-test
+  (is (= {:foo "bar"}
+         (sut/parse-map-params {:params [{:foo "bar"}]})))
+
+  (is (= {:baz "qux"}
+         (sut/parse-map-params {:params [{:baz "qux"}]})))
+
+  (is (= {}
+         (sut/parse-map-params {:params [{}]}))))
+
+
+(deftest parse-string-params-test
+  (is (= "foo"
+         (sut/parse-string-params {:params ["foo"]})))
+
+  (is (= "bar"
+         (sut/parse-string-params {:params ["bar"]})))
+
+  (is (= ""
+         (sut/parse-string-params {:params [""]}))))
+
+
+(deftest format-percentiles-params-test
+  (is (= [0.5 0.95]
+         (sut/format-percentiles-params "0.5,0.95")))
+
+  (is (= [0.5]
+         (sut/format-percentiles-params "0.5")))
+
+  (is (= []
+         (sut/format-percentiles-params ""))))

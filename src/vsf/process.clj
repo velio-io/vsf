@@ -228,7 +228,7 @@
     (fn stream [event]
       (let [event-time  (:time event)
             valid-event (condition-fn event)]
-        (when event-time                                    ;; filter events with no time
+        (when event-time      ;; filter events with no time
           (let [{ok :ok time :time}
                 (swap! last-changed-state
                        (fn [{ok :ok time :time :as state}]
@@ -1271,3 +1271,21 @@
                  {:label fn-name
                   :type  "function"
                   :info  (-> fn-var meta :doc)})))))
+
+
+(defmacro compile-controls []
+  (reduce
+   (fn [acc [fn-key]]
+     (let [fn-name (name fn-key)
+           fn-var  (requiring-resolve (symbol "vsf.action" fn-name))
+           {:keys [control-type control-params leaf-action doc]} (meta fn-var)
+           control (cond-> {:id           fn-name
+                            :label        fn-name
+                            :doc          doc
+                            :control-type control-type
+                            :leaf-action  leaf-action}
+                           (some? control-params)
+                           (assoc :control-params control-params))]
+       (assoc acc fn-name control)))
+   {}
+   action->fn))

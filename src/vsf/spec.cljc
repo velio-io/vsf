@@ -1,8 +1,9 @@
 (ns vsf.spec
-  (:refer-clojure :exclude [format])
+  (:refer-clojure :exclude [format count delay])
   (:require
-   [clojure.spec.alpha :as s]
    [clojure.string :as string]
+   [malli.core :as m]
+   [malli.error :as me]
    [vsf.condition :as condition]
    #?(:cljs [goog.string :as gstring])
    #?(:cljs [goog.string.format])
@@ -19,260 +20,340 @@
   (not (nil? v)))
 
 
+(defn float-number? [number]
+  #?(:clj  (float? number)
+     :cljs (and (float? number) (js/isFinite number))))
+
+
 (defn ex-invalid-spec
   "Returns an exception when value `x` does not conform to spec `spex`"
-  ([spec x]
-   (ex-invalid-spec spec x nil))
-  ([spec x data]
-   (let [message (format "Invalid spec: %s" (s/explain-str spec x))
-         data    (assoc data :explain-data (s/explain-data spec x))]
-     #?(:clj  (ex/ex-incorrect message data)
-        :cljs (js/Error message)))))
+  [error data]
+  (let [message (format "Invalid spec: %s" error)
+        data    (assoc data :explain-data error)]
+    #?(:clj  (ex/ex-incorrect message data)
+       :cljs (js/Error message #js {:cause data}))))
 
 
 (defn assert-spec-valid
   "Asserts that `x` conforms to `spec`, otherwise throws with
    `ex-invalid-spec`"
-  ([spex x]
-   (assert-spec-valid spex x nil))
+  ([spec x]
+   (assert-spec-valid spec x nil))
   ([spec x data]
-   (when-not (s/valid? spec x)
-     (throw (ex-invalid-spec spec x data)))
+   (when-some [error (m/explain spec x)]
+     (-> (me/humanize error)
+         (ex-invalid-spec data)
+         (throw)))
    x))
 
 
-(s/def ::size pos-int?)
-(s/def ::delay nat-int?)
-(s/def ::duration pos-int?)
-(s/def ::threshold number?)
-(s/def ::high number?)
-(s/def ::low number?)
-(s/def ::init any?)
-(s/def ::count pos-int?)
-(s/def ::condition condition/valid-condition?)
+(def size pos-int?)
+(def delay nat-int?)
+(def duration pos-int?)
+(def threshold number?)
+(def high number?)
+(def low number?)
+(def init any?)
+(def count pos-int?)
 
-(s/def ::ne-string
-  (s/and string? (complement string/blank?)))
+(def condition
+  [:fn {:error/message "condition should match the pattern - [:keyword-operator operator-arguments]
+   where :keyword-operator is one of :pos? :neg? :zero? :> :>= :< :<= := :always-true :contains
+   :absent :regex :nil? :not-nil? :not=. Also there's a two special cases :or and :and for combining multiple conditions.
+   operator-arguments could be a fixed value (e.g. number or string) or a keyword pointing to some key in the event (at least one pointer should be present)"}
+   condition/valid-condition?])
 
-(s/def ::field
-  (s/or :keyword keyword?
-        :seq (s/coll-of keyword?)))
+(def conditions
+  [:sequential {:min 1} condition])
 
-(s/def ::fields
-  (s/coll-of
-   (s/or :keyword keyword?
-         :seq (s/coll-of keyword?))))
+(def ne-string
+  [:and
+   string?
+   [:fn {:error/message "string can't be empty"}
+    string/blank?]])
 
-(s/def ::where
-  (s/cat :conditions ::condition))
+(def field
+  [:or keyword?
+   [:sequential {:min 1}
+    [:or keyword?
+     [:sequential {:min 1} keyword?]]]])
 
-(s/def ::coll-where
-  (s/cat :conditions ::condition))
+(def fields
+  [:sequential {:min 1} field])
 
-(s/def ::fixed-event-window
-  (s/cat :config (s/keys :req-un [::size])))
+(def where
+  [:catn [:conditions condition]])
 
-(s/def ::coll-sort
-  (s/cat :field keyword?))
+(def coll-where
+  [:catn [:conditions condition]])
 
-(s/def ::above-dt
-  (s/cat :config (s/keys :req-un [::threshold ::duration])))
+(def fixed-event-window
+  [:catn [:config
+          [:map [:size size]]]])
 
-(s/def ::below-dt
-  (s/cat :config (s/keys :req-un [::threshold ::duration])))
+(def coll-sort
+  [:catn [:field keyword?]])
 
-(s/def ::between-dt
-  (s/cat :config (s/keys :req-un [::high ::low ::duration])))
+(def above-dt
+  [:catn [:config
+          [:map
+           [:threshold threshold]
+           [:duration duration]]]])
 
-(s/def ::outside-dt
-  (s/cat :config (s/keys :req-un [::low ::high ::duration])))
+(def below-dt
+  [:catn [:config
+          [:map
+           [:threshold threshold]
+           [:duration duration]]]])
 
-(s/def ::critical-dt
-  (s/cat :config (s/keys :req-un [::duration])))
+(def between-dt
+  [:catn [:config
+          [:map
+           [:low low]
+           [:high high]
+           [:duration duration]]]])
 
-(s/def ::default
-  (s/cat :field not-null :value any?))
+(def outside-dt
+  [:catn [:config
+          [:map
+           [:low low]
+           [:high high]
+           [:duration duration]]]])
 
-(s/def ::output!
-  (s/cat :output-name keyword?))
+(def critical-dt
+  [:catn [:config
+          [:map [:duration duration]]]])
 
-(s/def ::coalesce
-  (s/cat :config (s/keys :req-un [::duration ::fields])))
+(def default
+  [:catn
+   [:field [:fn not-null]]
+   [:value any?]])
 
-(s/def ::tag
-  (s/cat :tags (s/or :single string?
-                     :multiple (s/coll-of string?))))
+(def output!
+  [:catn [:output-name keyword?]])
 
-(s/def ::untag
-  (s/cat :tags (s/or :single string?
-                     :multiple (s/coll-of string?))))
+(def coalesce
+  [:catn [:config
+          [:map
+           [:duration duration]
+           [:fields fields]]]])
 
-(s/def ::tagged-all
-  (s/cat :tags (s/or :single string?
-                     :multiple (s/coll-of string?))))
+(def tag
+  [:catn [:tags
+          [:or string?
+           [:sequential {:min 1} string?]]]])
 
-(s/def ::scale
-  (s/cat :factor number?))
+(def untag
+  [:catn [:tags
+          [:or string?
+           [:sequential {:min 1} string?]]]])
 
-(s/def ::throttle
-  (s/cat :config (s/keys :req-un [::count ::duration])))
+(def tagged-all
+  [:catn [:tags
+          [:or string?
+           [:sequential {:min 1} string?]]]])
 
-(s/def ::moving-event-window
-  (s/cat :config (s/keys :req-un [::size])))
+(def scale
+  [:catn [:factor number?]])
 
-(s/def ::ewma-timeless
-  (s/cat :r number?))
+(def throttle
+  [:catn [:config
+          [:map
+           [:duration duration]
+           [:count count]]]])
 
-(s/def ::over
-  (s/cat :n number?))
+(def moving-event-window
+  [:catn [:config
+          [:map [:size size]]]])
 
-(s/def ::under
-  (s/cat :n number?))
+(def ewma-timeless
+  [:catn [:r number?]])
 
-(s/def ::changed
-  (s/cat :config (s/keys :req-un [::init ::field])))
+(def over
+  [:catn [:n number?]])
 
-(s/def ::project
-  (s/cat :conditions (s/coll-of ::condition)))
+(def under
+  [:catn [:n number?]])
 
-(s/def ::index
-  (s/cat :labels (s/coll-of keyword?)))
+(def changed
+  [:catn [:config
+          [:map
+           [:init string?]
+           [:field field]]]])
 
-(s/def ::sdissoc
-  (s/cat :sdissoc
-         (s/or :single keyword?
-               :multiple (s/coll-of
-                          (s/or
-                           :keyword keyword?
-                           :seq (s/coll-of keyword?))))))
+(def project
+  [:catn [:conditions
+          [:sequential {:min 1} condition]]])
 
-(s/def ::coll-percentiles
-  (s/cat :points (s/coll-of number?)))
+(def index
+  [:catn [:labels
+          [:sequential {:min 1} keyword?]]])
 
-(s/def :by/fields
-  (s/coll-of (s/or :single keyword?
-                   :multiple (s/coll-of keyword?))))
+(def sdissoc
+  [:catn [:sdissoc
+          [:or keyword?
+           [:sequential {:min 1}
+            [:or keyword?
+             [:sequential {:min 1} keyword?]]]]]])
 
-(s/def :by/gc-interval pos-int?)
-(s/def :by/fork-ttl pos-int?)
+(def coll-percentiles
+  [:catn [:points
+          [:sequential {:min 1}
+           [:fn {:error/message "each point should be a decimal number"}
+            float-number?]]]])
 
-(s/def ::by
-  (s/cat :config (s/keys :req-un [:by/fields]
-                         :opt-un [:by/gc-interval
-                                  :by/fork-ttl])))
+(def by-fields
+  [:sequential
+   [:or keyword?
+    [:sequential {:min 1} keyword?]]])
 
-(s/def ::reinject
-  (s/cat :destination-stream
-         (s/or :keyword keyword?
-               :nil nil?)))
+(def by-gc-interval pos-int?)
+(def by-fork-ttl pos-int?)
 
-(s/def ::async-queue!
-  (s/cat :queue-name keyword?))
+(def by
+  [:catn [:config
+          [:map
+           [:fields by-fields]
+           [:gc-interval {:optional true} by-gc-interval]
+           [:fork-ttl {:optional true} by-fork-ttl]]]])
 
-(s/def ::tap
-  (s/cat :tap-name keyword?))
+(def reinject
+  [:catn [:destination-stream [:or keyword? nil?]]])
 
-(s/def ::json-fields
-  (s/cat :fields
-         (s/or :single keyword?
-               :multiple (s/coll-of keyword?))))
+(def async-queue!
+  [:catn [:queue-name keyword?]])
 
-(s/def ::reaper
-  (s/cat :interval pos-int?
-         :destination-stream (s/or :keyword keyword?
-                                   :nil nil?)))
+(def tap
+  [:catn [:tap-name keyword?]])
 
-(s/def ::to-base64
-  (s/cat :fields (s/coll-of keyword?)))
+(def json-fields
+  [:catn [:fields
+          [:or keyword?
+           [:sequential {:min 1} keyword?]]]])
 
-(s/def ::from-base64
-  (s/cat :fields (s/coll-of keyword?)))
+(def reaper
+  [:catn
+   [:interval pos-int?]
+   [:destination-stream [:or keyword? nil?]]])
 
-(s/def ::sformat
-  (s/cat :template string?
-         :target-field keyword?
-         :fields (s/coll-of keyword?)))
+(def to-base64
+  [:catn [:fields
+          [:sequential {:min 1} keyword?]]])
 
-(s/def ::publish!
-  (s/cat :channel keyword?))
+(def from-base64
+  [:catn [:fields
+          [:sequential {:min 1} keyword?]]])
 
-(s/def ::coll-top
-  (s/cat :nb-events pos-int?))
+(def sformat
+  [:catn
+   [:template string?]
+   [:target-field keyword?]
+   [:fields [:sequential {:min 1} keyword?]]])
 
-(s/def ::coll-bottom
-  (s/cat :nb-events pos-int?))
+(def publish!
+  [:catn [:channel keyword?]])
 
-(s/def ::stable
-  (s/cat :dt pos-int?
-         :field (s/or :keyword keyword?
-                      :seq (s/coll-of keyword?))))
+(def coll-top
+  [:catn [:nb-events pos-int?]])
 
-(s/def ::rename-keys
-  (s/cat :replacement (s/map-of keyword? keyword?)))
+(def coll-bottom
+  [:catn [:nb-events pos-int?]])
 
-(s/def ::keep-keys
-  (s/cat :keys-to-keep (s/coll-of (s/or :keyword keyword?
-                                        :seq (s/coll-of keyword?)))))
+(def stable
+  [:catn
+   [:dt pos-int?]
+   [:field [:or keyword?
+            [:sequential {:min 1} keyword?]]]])
 
-(s/def :include/variables
-  (s/map-of keyword? any?))
+(def rename-keys
+  [:catn [:replacement
+          [:map-of keyword? keyword?]]])
 
-(s/def :include/profile keyword?)
+(def keep-keys
+  [:catn [:keys-to-keep
+          [:or keyword?
+           [:sequential {:min 1}
+            [:or keyword?
+             [:sequential {:min 1} keyword?]]]]]])
 
-(s/def :include/config
-  (s/keys :opt-un [:include/variables :include/profile]))
+(def include-variables
+  [:map-of keyword? any?])
 
-(s/def ::include
-  (s/cat :path ::ne-string
-         :config :include/config))
+(def include-profile keyword?)
 
-(s/def ::sum
-  (s/cat :config (s/keys :req-un [::duration]
-                         :opt-un [::delay])))
+(def include-config
+  [:map
+   [:include/variables {:optional true} include-variables]
+   [:include/profile {:optional true} include-profile]])
 
-(s/def ::top
-  (s/cat :config (s/keys :req-un [::duration]
-                         :opt-un [::delay])))
+(def include
+  [:catn
+   [:path ne-string]
+   [:config include-config]])
 
-(s/def ::bottom
-  (s/cat :config (s/keys :req-un [::duration]
-                         :opt-un [::delay])))
+(def sum
+  [:catn [:config
+          [:map
+           [:duration duration]
+           [:delay {:optional true} delay]]]])
 
-(s/def ::mean
-  (s/cat :config (s/keys :req-un [::duration]
-                         :opt-un [::delay])))
+(def top
+  [:catn [:config
+          [:map
+           [:duration duration]
+           [:delay {:optional true} delay]]]])
 
-(s/def ::fixed-time-window
-  (s/cat :config
-         (s/keys :req-un [::duration]
-                 :opt-un [::delay])))
+(def bottom
+  [:catn [:config
+          [:map
+           [:duration duration]
+           [:delay {:optional true} delay]]]])
 
-(s/def ::moving-time-window
-  (s/cat :config (s/keys :req-un [::duration])))
+(def mean
+  [:catn [:config
+          [:map
+           [:duration duration]
+           [:delay {:optional true} delay]]]])
 
-(s/def ::ssort
-  (s/cat :config (s/keys :req-un [::duration ::field]
-                         :opt-un [::delay])))
+(def fixed-time-window
+  [:catn [:config
+          [:map
+           [:duration duration]
+           [:delay {:optional true} delay]]]])
 
-(s/def ::extract
-  (s/cat :k keyword?))
+(def moving-time-window
+  [:catn [:config
+          [:map [:duration duration]]]])
 
-(s/def ::rate
-  (s/cat :config (s/keys :req-un [::duration]
-                         :opt-un [::delay])))
+(def ssort
+  [:catn [:config
+          [:map
+           [:duration duration]
+           [:field field]
+           [:delay {:optional true} delay]]]])
 
-(s/def ::highest-trackable-value pos-int?)
-(s/def ::nb-significant-digits pos-int?)
-(s/def ::lowest-discernible-value number?)
+(def extract
+  [:catn [:k keyword?]])
 
-(s/def :percentiles/percentiles
-  (s/coll-of number?))
+(def rate
+  [:catn [:config
+          [:map
+           [:duration duration]
+           [:delay {:optional true} delay]]]])
 
-(s/def ::percentiles
-  (s/cat :config
-         (s/keys :req-un [::duration
-                          :percentiles/percentiles
-                          ::nb-significant-digits]
-                 :opt-un [::delay
-                          ::highest-trackable-value
-                          ::lowest-discernible-value])))
+(def highest-trackable-value pos-int?)
+(def nb-significant-digits pos-int?)
+(def lowest-discernible-value number?)
+
+(def percentiles-percentiles
+  [:sequential {:min 1} number?])
+
+(def percentiles
+  [:catn [:config
+          [:map
+           [:duration duration]
+           [:percentiles percentiles-percentiles]
+           [:nb-significant-digits nb-significant-digits]
+           [:delay {:optional true} delay]
+           [:highest-trackable-value {:optional true} highest-trackable-value]
+           [:lowest-discernible-value {:optional true} lowest-discernible-value]]]])
