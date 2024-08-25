@@ -3,6 +3,8 @@
 Aim of this library is to provide the convenient DSL to describe the event-stream processing logic.
 This DSL is defined in terms of Clojure EDN syntax. 
 
+This project has taken the DSL from Mirabelle (https://github.com/appclacks/mirabelle) and extracted it out as a separate re-usable library. The DSL has also been extended to support additional actions.
+
 The basic structure of DSL:
 
 ```clojure
