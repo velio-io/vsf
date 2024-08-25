@@ -1,5 +1,5 @@
-(defproject vsf "0.1.0-SNAPSHOT"
-  :description "FIXME: write description"
+(defproject io.velio/vsf "0.1.0-SNAPSHOT"
+  :description "A DSL for stream processing"
 
   :url "https://github.com/velio-io/vsf"
 
