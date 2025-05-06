@@ -1,5 +1,5 @@
 (ns vsf.action
-  (:refer-clojure :exclude [format])
+  (:refer-clojure :exclude [format read-string])
   (:require
    [vsf.spec]
    [clojure.string :as string]

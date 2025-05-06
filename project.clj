@@ -5,6 +5,10 @@
 
   :license {:name "EPL-1.0" :url "https://www.eclipse.org/legal/epl-v10.html"}
 
+  :scm {:name "git"
+        :url "https://github.com/velio-io/vsf"}
+  :deploy-repositories [["clojars" {:sign-releases false}]]
+
   :dependencies [[org.clojure/clojure "1.11.1"]
                  [org.clojure/tools.logging "1.2.4"]
                  [cheshire "5.12.0"]

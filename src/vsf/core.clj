@@ -5,8 +5,37 @@
    [clojure.tools.logging :as log]
    [exoscale.ex :as ex]
    [vsf.process :as process]
-   [vsf.index :as index]))
+   [vsf.index :as index]
+   [vsf.registry :as registry]
+   [vsf.spec]))
 
+(defn init-specs!
+  []
+  (doseq [[sym var] (ns-publics 'vsf.spec)]
+    (let [k (keyword (name sym))
+          schema (deref var)]
+      (when (and (vector? schema)
+                 (#{:catn :and :or :fn :map :sequential} (first schema)))
+        (registry/register-spec! k schema)))))
+
+(defn seed-builtins!
+  []
+  (init-specs!)
+  (doseq [[k builder-fn] process/action->fn]
+    (let [schema   (registry/get-spec k)
+          v        (requiring-resolve (symbol "vsf.action" (name k)))
+          m        (meta v)
+          action-meta {:doc            (:doc m)
+                       :control-type   (:control-type m)
+                       :control-params (:control-params m)
+                       :leaf-action    (:leaf-action m)}]
+      (registry/register-action!
+       {:action-key   k
+        :builder-fn   builder-fn
+        :spec-schema  schema
+        :meta         action-meta}))))
+
+(defonce _seed-builtins (seed-builtins!))
 
 (defn compile!
   [context stream]
@@ -19,9 +48,15 @@
 
     :else
     (let [action (:action stream)
-          func   (if (symbol? action)
+          func   (cond
+                   (symbol? action)
                    (requiring-resolve action)
-                   (get process/action->fn action))
+
+                   (contains? process/action->fn action)
+                   (get process/action->fn action)
+
+                   :else
+                   (registry/get-builder action))
           params (:params stream)]
       ;; verify if the fn is found or if we are in the special
       ;; case of the by stream
@@ -31,7 +66,6 @@
           ;; in order to generate one child per fork
           (process/by-fn (first params)
                          #(compile! context (:children stream)))
-
           (let [children (compile! context (:children stream))]
             (try
               (if (seq params)

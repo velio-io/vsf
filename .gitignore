@@ -17,3 +17,5 @@ pom.xml.asc
 /out
 package-lock.json
 /.shadow-cljs
+.clj-kondo/
+.lsp/
